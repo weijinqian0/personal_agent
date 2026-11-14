@@ -1,4 +1,4 @@
 interface:
   display_name: "推理激活与运行时 HBM 峰值估算"
   short_description: "核算推理中除权重和 KV 外的激活、工作区、通信与图池逐卡峰值"
-  default_prompt: "使用 $activation-hbm-estimation，先按激活/workspace、图模式/图池、HCCL buffer、其他持久池与运行时输出单卡汇总表，再展开shape、公式、数值代入、存活阶段与未知项。"
+  default_prompt: "使用 $activation-hbm-estimation，先用表格展开shape、公式、数值代入和异步跨批存活分析，最后按激活/workspace、图模式/图池、HCCL buffer、其他持久池与运行时输出单卡汇总表，重复模块名和条件，不使用上下文指代。"

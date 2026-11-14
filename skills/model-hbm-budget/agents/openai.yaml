@@ -1,6 +1,6 @@
 interface:
   display_name: "模型完整 HBM 预算"
-  short_description: "联动三个专项技能，先表格汇总 KV、权重、激活、图池与 HCCL，再展开逐卡计算"
-  default_prompt: "使用 $model-hbm-budget 联动三个专项 skill，先按 KVCache、权重、激活、图模式、HCCL buffer 等输出逐卡 HBM 汇总表，再展开各模块公式、数值代入与阶段合账，保留未知项。"
+  short_description: "联动三个专项技能核算模块及异步占用，末尾汇总 KV、权重、激活、图池与 HCCL"
+  default_prompt: "使用 $model-hbm-budget 联动三个专项 skill，未指定负载时采用128K序列和90%连续prefix命中假设，先用表格展开各模块公式、数值代入、异步在途与跨批占用和阶段合账，最后按 KVCache、权重、激活、图模式、HCCL buffer 等输出逐卡 HBM 总体汇总表，明确异步核算状态、完整模块名和条件，不使用上下文指代。"
 policy:
   allow_implicit_invocation: true

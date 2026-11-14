@@ -16,6 +16,8 @@ description: 根据模型配置、vLLM/vLLM-Ascend 执行源码和运行日志�
 - 不重复索取已知参数。用户更正token、并行或dtype后立即更新有效输入和全部依赖结果；旧数字只作标明失效条件的对照。
 - 用户要求自行选输入时，先找仓库内完整部署配置及实际模型元数据，说明为选取的参考场景。只读分析不授权改服务配置或执行昂贵profiling。
 
+完整HBM估算由总入口传入共享默认负载：无明确实际值或用户要求时，序列参考长度128K=131072 tokens、连续prefix命中率90%。激活计算仍使用本轮实际chunk/query token或部署batch预算，不能把131072直接当每轮输入，也不能把全部激活乘10%；命中历史、窗口和workspace仍按实际路径保留。单独调用需要历史长度且无明确值时采用相同默认并标为估算假设。
+
 ## 固定负载和并行作用域
 
 先填：模型/硬件/版本、P/D或混部角色、每DP调度token预算、实际本轮token、max_num_seqs、实际上下文组合、Attention TP/CP、有效EP、专家内部TP、PP、激活/通信dtype、图模式/档位、MTP/draft和重叠配置。
@@ -67,11 +69,17 @@ M_peak = max_r max_t M_r(t)
 - 无日志/设备时可算已知图内buffer，并保留图metadata/池扩展未知项G；不得将G取0、固定若干GiB或按参数量/层数/prefill token线性猜值。
 - 区分逻辑张量、allocated、reserved、设备free差分。reserved包含allocated，不能相加；non_torch已包含HCCL/ACL时不再加同一通信开销。安全余量与实测值分列。
 
+## 异步跨批占用
+
+确认async有效值、B个最大在途批次、每DP公共token预算和target/draft执行布局。逐storage记录当前batch及前序未完成batch保留的输入、输出、hidden/draft state、采样metadata、通信staging与图descriptor buffer；以真实跨批存活差额求异步非KV增量。两批在途不证明两次forward同时计算，不把全部激活、通信池或图池乘B。异步增量按A/G/C/P/R实际owner归类，只计一次。缺少B、shape或释放时点时，输出条件式并标“尚未完成定量核算”；局部buffer已算不代表完整异步峰值。
+
 ## 输出与复算
 
-单独调用时先给分类汇总表，分别列激活/workspace A、图模式/图池 G、HCCL buffer C、其他持久缓冲/独立通信池 P、运行时与分配器额外量 R，以及同阶段小计/完整峰值或未知式；然后给配置与各模块计算。图模式需同时标明target/draft及占用证据。局部持久buffer不能填到A行并冒充完整激活；G/C未知必须保留在首表。`non_torch`未能分解时注明覆盖类别，只计一次。
+每个激活/workspace、图池、HCCL域、其他持久buffer、runtime和异步跨批模块均用计算表列shape/dtype、capacity、公式与数值代入、整数bytes、MiB/GiB、存活阶段/去重及状态。中间结果不能只写散文或代码块；未知storage仍列条件式和缺项。
 
-由 `model-hbm-budget` 编排时按 A/G/C/P/R 分别交接，不将五类折叠成一个“非KV”数；完整报告由总入口统一汇总，专项仅提供各模块计算、同存关系和证据。再展开：
+单独调用时先给配置、模块计算及跨批存活分析，最后给分类汇总表，分别列激活/workspace A、图模式/图池 G、HCCL buffer C、其他持久缓冲/独立通信池 P、运行时与分配器额外量 R，以及同阶段小计/完整峰值或未知式。图模式需同时标明target/draft及占用证据。局部持久buffer不能填到A行并冒充完整激活；G/C未知必须保留在末尾汇总表。`non_torch`未能分解时注明覆盖类别，只计一次。
+
+由 `model-hbm-budget` 编排时按 A/G/C/P/R 分别交接，不将五类折叠成一个“非KV”数；完整报告由总入口统一汇总，专项仅提供各模块计算、同存关系和证据。末尾汇总重复完整模块名称、配置/阶段、变量定义和异步核算状态，不使用上下文指代。计算过程展开：
 
 1. 参数/来源表：用户值、实际默认、参考场景、显式假设和未知；明确rank/芯片/节点作用域。
 2. 阶段表：`阶段 | 同时存活storage形状/dtype | 公式及数值代入 | bytes/MiB/GiB | 来源/未知项`。大项保留整数bytes，最后换算；GB=10^9、GiB=2^30。
