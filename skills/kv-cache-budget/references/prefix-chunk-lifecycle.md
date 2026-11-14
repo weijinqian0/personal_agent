@@ -5,7 +5,7 @@
 ## 1. 定义输入与区间
 
 - P：真实命中且对齐后的连续前缀长度；全服务平均命中率不能直接代入。
-- Q：命中后、此前chunk已经计算的历史。
+- Q：命中后、此前chunk已经安全结算的历史；尚未结算的上一批不得计入Q。
 - C：当前新增chunk；多个未结算批次分别列出位置区间，不重复计数。
 - F：该请求已调度但未安全结算的位置数，不一定等于C，也不一定达到配置上限。
 - W、extra retention、block tokens、compression ratio、dtype/scale、实际owner、缓存可否prefix复用均逐组件确认。
@@ -78,6 +78,22 @@ PP、runner和推测模式会改变批次数/位置数。对纯prefill的单请�
 
 D按各未结算step实际喂入token计F；无推测时可能每步1 token，有推测时不能照抄。不能把公共8K/16K预算作为每条decode请求的实际值。异步不把长期KV、prefix或固定ring整体乘并发批数；每个位置只计算一次。
 
+### 所有Attention组件都列出多批新增位置
+
+令S=P+Q为安全结算历史，C_1...C_k为不同未结算批次的位置数。对每个会产生新token缓存的组件，逐批累计：
+
+```text
+H = S + sum(C_i)
+batch_i_records = R(S + sum(C_1...C_i)) - R(S + sum(C_1...C_(i-1)))
+all_inflight_records = R(H) - R(S)
+```
+
+适用于其实际产出规则已确认的普通KV、紧凑latent、压缩主KV、Index K和folded副本；SWA在逐批位置账之外再施加窗口与释放规则。固定state按生命周期核算，不因增加批次复制。两批等长8K时，线性且对齐的新增token KV通常约翻倍，不代表完整请求KV翻倍；非对齐压缩产出、分页和copy-on-write按实际规则，不硬乘2。
+
+分别展示“prefix P｜已结算Q｜上一未结算批｜当前批｜固定state”，不能只给一个16K F和合并历史，从而隐藏第二批主KV/索引是否已计入。完整H的长期缓存已经覆盖这些位置，再追加一份chunk会重复计费。
+
+比较同步与异步有两个不同基准：固定S时H随批数增长，长期KV和SWA新增预算都会增长；固定H时长期记录总数不变，只是Q与在途位置重新分摊，不能据此声称异步只影响SWA。序列末尾不足两批时，用真实剩余位置；更保守的完整H+满额F包络须单独标注，不当作固定chunk轨迹的实测峰值。
+
 ## 7. PD释放：三种不同生命周期
 
 | 机制 | 核查路径 | 计算规则 |
@@ -107,6 +123,12 @@ M_resident = U * |B_active ∪ B_delayed ∪ B_prefix|
 N_extra_prefix可能可淘汰并可重新分配，不应全从admission可用量中扣除。M_resident为有效内容所占页的等价容量，不是启动预分配总量，也不是设备API的已分配内存；两者须另外说明。新请求边际分配按已有可复用页扣重，再考虑copy-on-write及恢复副本。
 
 交付顺序：条件/版本 → Attention组成与owner → 逐组件prefix/chunk表 → 逐批F及checkpoint保留 → 物理页与padding → 释放生命周期 → 活跃持块、驻留量、边际量及日志对账。缺prefix保留页时，明确已给数字只涵盖哪一项。
+
+### block变化时解释的是哪种成本
+
+先区分有效内容、未填充页、统一pool容量等价成本和启动预分配量。对同一历史，缩小block通常不增加有效记录数；但若共享slot尺寸由固定ring大页主导，block变小、页数增加，而slot stride未同比缩小，pool成本可能上升。需从实际`max(component_pages)`、group映射和pool divisor推导，不把这种布局特性说成“小block天然更耗KV”，也不能解释为ring有效state被复制到每个长期页。
+
+有统一U时展示`ceil(H/block)*U`及有效内容作对照；多组件本来独立分配时不能强套此式。固定可用内存预分配池下，更高的请求块成本通常体现为可容纳token/并发下降，不是服务启动后设备已分配显存自动随请求扩大。layerwise buffer reuse或独立state池改变布局后重新计算，不延用旧放大比例。
 
 ## 有边界条件的检查算例（不是模型默认值）
 

@@ -68,6 +68,37 @@ class BudgetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             calculate(config)
 
+    def test_async_fixed_settled_history_adds_long_and_window_pages(self):
+        # Declared geometry only: no runtime or automatic model-layout inference.
+        config = {
+            "pool_bytes_per_block": 462848, "max_model_len": 1048576,
+            "global_in_flight_limit": 16384,
+            "groups": [
+                {"name": "long", "kind": "full", "block_tokens": 128},
+                {"name": "ring", "kind": "fixed", "blocks": 1},
+                {"name": "swa", "kind": "window", "block_tokens": 128,
+                 "window": 128, "multiplicity": 10, "boundary_slack_blocks": 1}],
+            "requests": [{"id": "A", "history_tokens": 117888 + 8192,
+                          "in_flight_tokens": 8192}]}
+        sync = calculate(config)["requests"][0]
+        config["requests"][0].update(history_tokens=117888 + 16384,
+                                     in_flight_tokens=16384)
+        async_result = calculate(config)["requests"][0]
+        before = {g["group"]: g["blocks"] for g in sync["groups"]}
+        after = {g["group"]: g["blocks"] for g in async_result["groups"]}
+        self.assertEqual(after["long"] - before["long"], 64)
+        self.assertEqual(after["swa"] - before["swa"], 640)
+        self.assertEqual(after["ring"], before["ring"])
+        self.assertEqual(async_result["bytes"] - sync["bytes"], 704 * 462848)
+
+        # At fixed complete H, F changes the partition, not the long-KV total.
+        config["requests"][0]["in_flight_tokens"] = 8192
+        same_history = calculate(config)["requests"][0]
+        same_groups = {g["group"]: g["blocks"] for g in same_history["groups"]}
+        self.assertEqual(same_groups["long"], after["long"])
+        self.assertEqual(same_groups["ring"], after["ring"])
+        self.assertEqual(async_result["bytes"] - same_history["bytes"], 640 * 462848)
+
 
 if __name__ == "__main__":
     unittest.main()

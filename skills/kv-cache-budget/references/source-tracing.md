@@ -14,6 +14,8 @@ rg -n 'num_hidden_layers|num_key_value_heads|head_dim|compress_ratios|sliding_wi
 
 参数名称和优先级随版本变化；若未命中，查对应CLI注册与配置dataclass。追踪最终解析值和设备能力分支；区分“未填写”“默认启用”“实际不支持”。多模态长度按encoder输出及送入语言主干的位置数取证，不能只按文本tokenizer计数。
 
+block_size沿“启动/最终解析配置 → vllm-ascend平台与模型校验/覆盖 → Attention backend支持块大小 → 配套vLLM配置默认”取证，记录实际覆盖顺序。搜索`block_size is None`、`check_and_update_config`、`get_supported_kernel_block_sizes`及模型block映射；符号随版本变化。找不到最终值时使用SKILL.md中用户约定的128回退，不把它标为代码默认。单独记录storage_block_size、压缩比和ring capacity，不能互相替代。
+
 ## 2. 缓存登记与页字节
 
 ```bash
