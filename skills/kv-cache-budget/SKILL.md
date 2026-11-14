@@ -14,6 +14,28 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 3. 沿 `get_kv_cache_spec()` 追到 dtype 解析、页字节属性、runner 分配/reshape、缓存分组和调度器回收逻辑。分析 vLLM/vllm-ascend 时读取 [源码查询路径](references/source-tracing.md)，按符号搜索，文件位置不能当成跨版本事实。
 4. 从日志核对 group geometry、块数和 registered bytes。若可以取比值，先确认分子分母属于同一 rank、同一池、同一分配范围。记录证据来源为源码、日志、论文或显式假设。
 
+## 按目标检查参数完整性
+
+先从完整启动命令、最终解析配置、模型构造、相关环境变量和运行日志提取参数；默认值从运行版本解析，不能把“启动命令未填写”视为关闭或取1。将必要信息标为已确认、假设或待补充，仅对会改变当前结果的缺失/冲突项集中补问。
+
+| 用户目标 | 需要确认的输入 |
+| --- | --- |
+| 长期有效状态量 | 模型/config版本、Attention层组成与owner共享关系、实际缓存路径和各组件dtype/scale、实际历史长度及生成增长；多模态时确认进入语言主干的实际token数及另存的encoder/cross-attention状态 |
+| 逐rank运行/峰值预算 | 上述输入，以及硬件具体型号、后端/缓存kernel路径、P/D并行布局、block与page布局、Hybrid管理器、当前chunk与异步在途、MTP/DSpark、窗口回收和额外状态保留 |
+| 并发上限、admission或OOM | 上述输入，以及每rank实际可用KV池/块数、请求组合与实际活跃数、前缀共享/取回、checkpoint与connector持块；判断整机OOM时另加权重、activation、workspace、通信/graph缓冲等非KV峰值 |
+
+对逐rank预算和容量问题，按相关性逐项检查：
+
+- **硬件和执行路径**：具体芯片/SKU、运行版本、Attention backend、量化/打包分支；相同模型在不同硬件路径的记录宽度、scale与padding可能不同。
+- **Hybrid与分页**：Hybrid KV Cache Manager是否实际启用，是否转为其他管理器或全历史保留；最终生效block/page大小、缓存组、自动填充及别名规则。
+- **实际负载**：输入/已计算/命中/输出的整数token数，命中长度按后端粒度对齐；多请求用各自长度和在途量。`max_model_len`、`max_num_seqs`是配置上限，不能代替实际请求长度/活跃数；预测混合负载峰值时需要长度与并发组合，均值不足以唯一确定峰值。
+- **调度与推测**：chunked prefill是否启用、有效batch token预算、async和最大并发批次；MTP/DSpark的method、推测token数、实际lookahead、附加cache层/模块及放置、extra trailing retention，按代码避免重复计入lookahead。
+- **前缀与保留**：本地prefix caching开关、外部池命中路径、连续前缀实际长度/共享身份/命中粒度、检查点保留间隔、淘汰和抢占/重算规则；只在确实产生额外持块或副本时计量。
+- **PD交接**：connector种类、P/D角色、逐层或全量传输、D是否已有同一前缀、传输完成确认与释放时点、等待交接的完成请求数。预分配通信缓冲与KV页分开；不凭链路带宽猜测已持块峰值。
+- **容量供给**：优先使用每rank实际KV池bytes、num_blocks及override后的值；确认显式KV内存预算、`gpu_memory_utilization`或同等配置、`num_gpu_blocks_override`等在该版本中的优先级。没有实测池大小时，只能按扣除已知非KV开销的可用内存做条件估算，不能将“总显存×利用率”全当KV池。
+
+缺少核心配置时可这样提示：“当前可以计算长期有效KV；若要给逐卡峰值/并发上限，还缺P/D完整启动参数、实际Attention并行、Hybrid/异步/MTP配置和逐rank KV池日志。已知项无需重复提供。”按当前任务缩减问题，补充前提供带假设的公式或区间，不给唯一的实际峰值/并发上限。
+
 ## 建立计算口径
 
 - 长度使用整数 token；明确 128K 是 128000 还是 131072。GB=10^9 bytes，GiB=2^30 bytes。
@@ -74,6 +96,8 @@ python3 scripts/calculate_pool.py --input /path/to/layout-and-requests.json
 ```
 
 输入和边界见 [日志算例与输入格式](references/worked-example.md)。不确定布局时先补证据，不使用示例默认值代替部署配置。脚本只复算预算，不运行模型或预测吞吐。
+
+脚本仅验证所提供的几何、整数范围和公共在途额度，不会自动解析源码、识别设备或检查上述部署参数是否齐全，也不直接计算共享去重、交接积压或并发上限；调用前由分析流程确认输入适用范围。
 
 检查：组件无遗漏；跨 dtype 字节正确；压缩前后 token 单位正确；共享页不重复；请求 F 未超过全局上界；截断/边界/retention 未漏；单位一致；快照与日志是否对应。比较旧估算时逐项解释结构、dtype、block、group、MTP、async、长度和单位差异。
 

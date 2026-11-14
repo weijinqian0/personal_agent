@@ -6,10 +6,13 @@
 
 ```bash
 rg -n 'max_model_len|max_num_batched_tokens|max_num_seqs|block_size|cache_dtype|async_scheduling|speculative|kv_transfer' <log-or-launch-directory>
+rg -n 'chunked_prefill|hybrid_kv_cache|attention_backend|num_speculative_tokens|lookahead|extra_retained_tokens|prefix_cache|retention_interval|preemption|gpu_memory_utilization|kv_cache_memory_bytes|num_gpu_blocks_override' <log-launch-and-config-directories>
 rg -n 'num_hidden_layers|num_key_value_heads|head_dim|compress_ratios|sliding_window' <model-config>
 ```
 
 查模型构造中 Compressor、Indexer、SWA、MTP/DSpark 的条件分支。config 给能力，实际构造和启动参数决定激活的路径。论文帮助解释结构；实际字节布局取后端。
+
+参数名称和优先级随版本变化；若未命中，查对应CLI注册与配置dataclass。追踪最终解析值和设备能力分支；区分“未填写”“默认启用”“实际不支持”。多模态长度按encoder输出及送入语言主干的位置数取证，不能只按文本tokenizer计数。
 
 ## 2. 缓存登记与页字节
 
@@ -63,3 +66,5 @@ rg -n 'registered_bytes|num_blocks|cache group|token capacity|Maximum concurrenc
 ```
 
 记录 `pool bytes/block`、有效请求持块、总池预分配三个口径。容量日志可能使用 max_model_len 和 max_in_flight_tokens 的 admission 成本折算，不能用 token capacity 直接反推每 token 长期 KV 大小。验证计算只证明日志算术一致；本地 commit 未匹配运行环境时保留该证据缺口。
+
+计算可接纳请求数前，查实际池大小是否受显式bytes预算或块数override控制，核对它们相对内存利用率的优先级。对照weight/non-framework/activation/graph/workspace等profiling项，确认哪些已从可用池扣除；不重复扣减，也不把这些非KV内存混入KV有效字节。需要实际瞬时峰值时采集或索取逐rank的活跃/空闲/保留块与在途队列数据；仅有启动容量日志不能证明运行峰值。
