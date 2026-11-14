@@ -99,6 +99,39 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(same_groups["ring"], after["ring"])
         self.assertEqual(async_result["bytes"] - same_history["bytes"], 640 * 462848)
 
+    def test_settled_baseline_plus_global_inflight_delta(self):
+        config = {
+            "pool_bytes_per_block": 1000, "max_model_len": 4096,
+            "global_in_flight_limit": 256,
+            "groups": [
+                {"name": "long", "kind": "full", "block_tokens": 128},
+                {"name": "window", "kind": "window", "block_tokens": 128,
+                 "window": 128, "boundary_slack_blocks": 1},
+                {"name": "ring", "kind": "fixed", "blocks": 1}],
+            "requests": [
+                {"id": "A", "history_tokens": 129, "in_flight_tokens": 0},
+                {"id": "B", "history_tokens": 256, "in_flight_tokens": 0}]}
+        baseline = calculate(config)
+        baseline_groups = [{g["group"]: g["blocks"] for g in r["groups"]}
+                           for r in baseline["requests"]]
+        # A's 127 positions fit its already allocated last long-history page;
+        # B needs two new pages. Per-column ceil(F/b) would double-count A's page.
+        config["requests"][0].update(history_tokens=256, in_flight_tokens=127)
+        config["requests"][1].update(history_tokens=385, in_flight_tokens=129)
+        active = calculate(config)
+        active_groups = [{g["group"]: g["blocks"] for g in r["groups"]}
+                         for r in active["requests"]]
+        self.assertEqual(active["total_in_flight_tokens"], 256)
+        self.assertEqual([a["long"] - b["long"]
+                          for a, b in zip(active_groups, baseline_groups)], [0, 2])
+        self.assertEqual([a["ring"] - b["ring"]
+                          for a, b in zip(active_groups, baseline_groups)], [0, 0])
+        increments = [sum(a[k] - b[k] for k in a)
+                      for a, b in zip(active_groups, baseline_groups)]
+        self.assertEqual(increments, [1, 3])
+        self.assertEqual(baseline["total_bytes"] + sum(increments) * 1000,
+                         active["total_bytes"])
+
 
 if __name__ == "__main__":
     unittest.main()
