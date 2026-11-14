@@ -1,0 +1,4 @@
+interface:
+  display_name: "权重 HBM 占用估算"
+  short_description: "结合 vLLM 与 Ascend 源码，逐模块核算并行切分后的权重显存"
+  default_prompt: "使用 $weight-hbm-estimation，根据模型 checkpoint 和 vLLM/vLLM-Ascend 代码估算逐模块、逐卡权重 HBM；影响结果且无法确认的配置先询问。"
