@@ -48,6 +48,18 @@ PD 分别按 P/D 实际 dtype、并行布局、在途 token 与持块规则核�
 
 ## 多请求和多卡
 
+计算逐卡结果前，先从启动参数、最终解析配置、模型构造和 rank 日志提取并行布局；仅缺失或冲突的关键项再向用户补问，不重复询问已有证据。P、D 分别填写：
+
+| 必须确认的布局 | 需要的证据 |
+| --- | --- |
+| 作用域 | P/D 实例数、每实例设备数；结果按芯片、rank、节点还是整个实例计 |
+| Attention TP 与 DP | 实际 Attention TP group、是否启用 DP Attention、请求与 token budget 属于哪个 worker；不能直接套 MoE 的 EP 或启动参数的名义 TP |
+| Context parallel | Prefill CP/PCP、Decode CP/DCP 的大小与切分方式；KV、索引、窗口和 state 各自是否切分、复制或归属于特定 rank |
+| Pipeline parallel | PP 大小、各 stage 的实际层/owner 分配、MTP/DSpark 放置和影响在途批次数的配置 |
+| 缓存组件归属 | 全局 KV、MLA latent、Index K、SWA、compressor/递推状态、共享 owner 的逐 rank shape 和物理副本 |
+
+若这些信息不足以唯一确定逐 rank 的 KV/索引/state 形状、层数或预算作用域，必须明确提醒用户补充 P/D 完整启动命令或上述缺失参数；不得默认为 Attention TP=1、所有43层都在单卡，或将全模型容量直接除以 EP/TP/CP。补充前仍可给全模型逻辑容量及标明假设的候选场景，但不输出唯一逐卡峰值。问题应聚焦，例如：“目前只有 EP=32，请补充 P/D 的实际 Attention TP/DP、PCP/DCP、PP 和每实例设备数；这些决定 KV 与 state 是分片还是复制。”
+
 - 每请求有自己的历史与窗口边界；公共前缀、retained checkpoint 和 connector 持块另计，容量分摊与物理去重分别说明。
 - EP 不自动切分 Attention KV。按 Attention 的 TP/CP/PP/DP 和实际 head ownership 算逐 rank。头不均匀时枚举身份；不能用 `ceil(n_kv/TP)` 推断任意映射。
 - 量化 KV 不代表 FP32 compressor state 同时量化。量化 metadata、页内 padding 和反量化 workspace 分开。

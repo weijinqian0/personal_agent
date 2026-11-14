@@ -47,9 +47,14 @@ rg -n 'token_budget|num_in_flight_tokens|remove_skipped_blocks|max_admission_blo
 ```bash
 rg -n 'prefix_cache|retention_interval|ref_cnt|copy_on_write' <cache-manager-directory>
 rg -n 'state|cache_families|kv_role|compressor' <kv-transfer-directory>
+rg -n 'attention_tp|dp_attention|tensor_parallel|data_parallel|pipeline_parallel|prefill_context_parallel|decode_context_parallel|pcp_size|dcp_size' <launch-config-and-model-directories>
 ```
 
 确认 checkpoint 保存哪些页、命中粒度、外部缓存恢复哪些状态、producer 何时释放、consumer 何时获得所有权。物理前缀共享不代表访问流量同比例共享。TP 按真实 KV 头身份、CP 按上下文归属、PP 按层归属，DP 按请求归属计量；EP 不自动切 KV。
+
+对 P、D 独立追踪 Attention 的实际 process group，以及每个组件最终的 local shape。启动参数 TP、EP 不能替代模块内部的 Attention TP。MLA latent、索引或 compressor state 可能与 Query heads 使用不同的复制/切分规则；CP 也可能使窗口重叠、边界页或 state 在多个 rank 保留。重新生成各 stage/rank 的 cache groups 和 pool bytes/block，不能先算完整模型池填充再机械除卡数。
+
+若最终配置/日志未给足布局，向用户说明缺的是哪项、会影响哪个组件，索取完整启动命令或必要参数。输出中标注已确认/假设/待补充；不把未知并行值悄悄置为1。
 
 ## 5. 日志核对
 
