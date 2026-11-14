@@ -1,6 +1,6 @@
 interface:
   display_name: "模型完整 HBM 预算"
-  short_description: "联动权重、KV Cache、激活与运行时三个专项技能，核算推理模型逐卡完整 HBM 容量"
-  default_prompt: "使用 $model-hbm-budget 联动三个专项 skill，估算指定模型部署的完整逐卡 HBM 占用，保留未知项并给出可复算过程。"
+  short_description: "联动三个专项技能，先表格汇总 KV、权重、激活、图池与 HCCL，再展开逐卡计算"
+  default_prompt: "使用 $model-hbm-budget 联动三个专项 skill，先按 KVCache、权重、激活、图模式、HCCL buffer 等输出逐卡 HBM 汇总表，再展开各模块公式、数值代入与阶段合账，保留未知项。"
 policy:
   allow_implicit_invocation: true
