@@ -12,6 +12,8 @@ rg -n 'num_hidden_layers|num_key_value_heads|head_dim|compress_ratios|sliding_wi
 
 查模型构造中 Compressor、Indexer、SWA、MTP/DSpark 的条件分支。config 给能力，实际构造和启动参数决定激活的路径。论文帮助解释结构；实际字节布局取后端。
 
+默认预算包括投机相关缓存。按[投机缓存核算](speculative-cache.md)追踪实际draft/proposer与target验证路径，分别核对历史长度、prefix能力、附加owner和状态槽，再从包含投机模块的最终spec集合重新计算布局。不得因命令未提供speculative_config就默认排除，也不得因config存在MTP层就声称实际开启。
+
 参数名称和优先级随版本变化；若未命中，查对应CLI注册与配置dataclass。追踪最终解析值和设备能力分支；区分“未填写”“默认启用”“实际不支持”。多模态长度按encoder输出及送入语言主干的位置数取证，不能只按文本tokenizer计数。
 
 block_size沿“启动/最终解析配置 → vllm-ascend平台与模型校验/覆盖 → Attention backend支持块大小 → 配套vLLM配置默认”取证，记录实际覆盖顺序。搜索`block_size is None`、`check_and_update_config`、`get_supported_kernel_block_sizes`及模型block映射；符号随版本变化。找不到最终值时使用SKILL.md中用户约定的128回退，不把它标为代码默认。单独记录storage_block_size、压缩比和ring capacity，不能互相替代。
