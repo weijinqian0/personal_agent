@@ -44,6 +44,17 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 - 本地已共享前缀按物理页去重；远端命中是否需要取回由 connector 决定。命中不自动减少当前 query 对旧历史的 Attention，也不自动减少 chunk 的在途 state。
 - 从 allocator 明确各 group 的独立 block 消耗和别名关系。共享 backing 的 tensor views 不重复计算；用 pool bytes/block 计费后不再附加同一份 padding。
 
+## 逐组件拆分 prefix cache 与 chunk
+
+具体容量分析时，对每类 Attention 块的实际缓存组件分别给出 prefix cache 与当前 chunk 两列，不先合并长度只给总数。涉及 prefix、SWA、异步或 PD 时，读取 [分账与释放生命周期](references/prefix-chunk-lifecycle.md)，按其中步骤形成完整账目。
+
+- 按物理 owner 枚举主KV、索引、folded/重排副本、SWA、compressor与递推state；consumer及别名不能重复计费。
+- 明确命中前缀P、此前chunk历史Q、当前chunk C与所有未结算批次F。Q不得消失，也不得伪装成最初命中的P；异步时逐批说明F由哪些位置组成。
+- 每个组件展示 prefix有效数据/物理页、此前chunk保留、当前chunk新增、固定请求状态及重合页；不适用应说明原因，未知保留页数不能填0。
+- SWA必须分别核算“命中边界所需窗口”“prefix池全部保留checkpoint页”“活跃历史尾窗与chunk在途页”。窗口W不是prefix池容量，也不意味着整个prefix都应保存；活跃窗口admission边界余量不等于checkpoint真实页数。
+- prefix与活跃页按实际物理身份取并集。分别交付活跃请求持块、包括可淘汰prefix的驻留量、新请求边际分配；不能用其中一项冒充另两项。
+- 组件数据账转换为实际group/tuple成本后再汇总，不能给同一group内每个组件各乘一次完整pool成本。页内边界与压缩边界用累计差分，不能对两列分别ceil后直接相加。
+
 ## 计算调度与峰值
 
 `max_num_batched_tokens` 是同一调度批所有请求的公共预算，不是每请求额度。分别记录实际调度量、实际未结算量和配置保守上界。
@@ -57,6 +68,8 @@ sum(F_request) <= F_global_max
 
 并发批次数从运行版本和 PP/async 配置获取。两批在途不代表两个 forward 同时计算。不得给每条请求重复分配全局 F 上界。
 
+先解析实际async默认分支、兼容性覆盖及最终值；未填写不等于关闭。若实际开启，正文主结论用异步场景，同步只能作为明确的对照。纯prefill单请求的F还受未完成输入位置数限制；D按实际每步喂入位置和未结算步数算，不把公共batch token上限都分给一条decode请求。
+
 对采用该公式的 sliding-window manager，页数保守预算为：
 
 ```text
@@ -67,6 +80,8 @@ n = ceil(min(max_model_len, W - 1 + extra_retained_tokens + F) / block_tokens)
 边界余量、回收时点、MTP lookahead、prefix checkpoint retention 均从实现取证。这是 admission 上界；不能仅凭 Spec 就证明实际每行 state 都已写入，或所有组件上界同时达到。若实现采用固定 ring/circular state，改用真实固定槽规则，不能套 chunk 线性增长。
 
 PD 分别按 P/D 实际 dtype、并行布局、在途 token 与持块规则核算。交接双端重叠量只有在寿命重叠时相加。输出 token 引入的历史增长按实际喂入模型的位置数计算；首个输出来自 prefill。
+
+PD必须沿实际connector的`request_finished[_all_groups]`及调度器释放调用链检查`delay_free_blocks`，区分传输延长原页寿命、consumer在途写入fence的`defer_block_free`、以及可淘汰prefix保留。已确认layerwise路径返回False时，不附加“完成后等待D拉取”的请求持块，但不能推断所有connector或所有释放保护均关闭；layerwise物理buffer reuse若重写布局，须重算pool成本。
 
 ## 多请求和多卡
 
@@ -108,7 +123,7 @@ python3 scripts/calculate_pool.py --input /path/to/layout-and-requests.json
 容量核算输出必须让读者可以从原始参数独立复算，不能只给最终GiB、泛化公式或脚本结果。对当前问题相关的组件，按“参数来源 → 符号公式 → 数值代入 → 中间结果 → 最终汇总”展开；使用静态源码时标注仓库/commit及文件位置，日志标明rank/池/配置，假设不得伪装成已确认值。用户明确要求简短结论时可在正文给摘要，但应提供可查看的完整计算附件或文件；仅询问概念或流程、不要求具体容量时无需强行生成数值账。
 
 1. **条件与变量表**：写明模型config、硬件/后端版本、P/D角色、rank与并行归属、长度、命中/共享状态、dtype、block/page、调度及MTP设置；每个关键值标注来源或假设。明确哪些是实际值、配置上限或保守场景。
-2. **有效数据量**：分别代入主KV、索引、SWA、compressor/递推状态公式，列出层/owner数、记录数、记录有效字节。区分完整历史、命中前缀、先前chunk和本轮新增；已共享的物理前缀不重复相加。
+2. **有效数据量**：分别代入主KV、索引、SWA、compressor/递推状态公式，列出层/owner数、记录数、记录有效字节。每个组件必须分列命中prefix、先前chunk、本轮新增/多批在途和固定状态；SWA另列全部prefix保留页与命中所需尾窗的区别，不能只展示合并历史总量。已共享的物理前缀不重复相加。
 3. **物理页布局**：展开一条记录的数据与scale字节、每页记录行数、原始token覆盖范围、页内对齐和padding。别名view只计一份。逐项列出填充前后差额，不能只说“包含padding”。
 4. **在途与页数**：从实际版本的并发批次规则推导全局F上界，并给出各请求F分配；代入窗口、extra retention、截断、向上取整及边界余量，显示每组整数页数。实际值与admission上界分表或分列，不把不能同时发生的上界称为实测峰值。
 5. **缓存池与并行汇总**：若使用共享池，展示自动group/tuple分组结果、slots、各页bucket及bytes/block的数值推导或日志比值，再用独立block消耗汇总。逐rank列出组件切分、复制、层归属，不能把整模型池机械除卡数。P/D分别算，交接重叠、checkpoint/connector持块及共享去重需说明计入/排除依据。

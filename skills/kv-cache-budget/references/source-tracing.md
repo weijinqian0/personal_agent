@@ -39,6 +39,7 @@ vllm-ascend 的 V4 常见入口：
 rg -n 'group_and_unify|num_layer_tuples|pool_bytes_per_block|max_memory_usage_bytes_from_groups' <cache-planner>
 rg -n 'max_concurrent_batches|max_in_flight_tokens' <vllm-config-directory>
 rg -n 'token_budget|num_in_flight_tokens|remove_skipped_blocks|max_admission_blocks_per_request' <scheduler-and-manager-directory>
+rg -n 'async_scheduling is None|max_concurrent_batches|max_in_flight_tokens|processed_step_seq|deferred_frees' <config-and-scheduler-directories>
 ```
 
 常见文件：`patch/platform/patch_kv_cache_utils.py`、上游 `config/vllm.py`、`v1/kv_cache_interface.py`、`v1/core/sched/scheduler.py`、`v1/core/kv_cache_manager.py`、`single_type_kv_cache_manager.py`。跨版本确认方法签名与调用点。
@@ -49,11 +50,16 @@ rg -n 'token_budget|num_in_flight_tokens|remove_skipped_blocks|max_admission_blo
 
 ```bash
 rg -n 'prefix_cache|retention_interval|ref_cnt|copy_on_write' <cache-manager-directory>
+rg -n 'reachable_block_mask|replay_boundaries|shared_prefix_boundary|find_longest_cache_hit|free_blocks' <cache-manager-directory>
 rg -n 'state|cache_families|kv_role|compressor' <kv-transfer-directory>
+rg -n 'request_finished_all_groups|request_finished|delay_free_blocks|defer_block_free|finished_sending|finished_recving' <connector-and-scheduler-directories>
+rg -n 'use_layerwise|wait_for_layer_reuse|apply_layerwise_kv_cache_plan|supports_layerwise_buffer_reuse' <backend-directory>
 rg -n 'attention_tp|dp_attention|tensor_parallel|data_parallel|pipeline_parallel|prefill_context_parallel|decode_context_parallel|pcp_size|dcp_size' <launch-config-and-model-directories>
 ```
 
 确认 checkpoint 保存哪些页、命中粒度、外部缓存恢复哪些状态、producer 何时释放、consumer 何时获得所有权。物理前缀共享不代表访问流量同比例共享。TP 按真实 KV 头身份、CP 按上下文归属、PP 按层归属，DP 按请求归属计量；EP 不自动切 KV。
+
+prefix命中应从实际boundary匹配逻辑推导最少窗口页，从retention mask和淘汰逻辑推导全部驻留页。检查被请求释放的页是否仍带hash进入可复用free queue，不能把“释放引用”解释成立即清空缓存，也不能把可淘汰缓存全当成不可用容量。PD沿connector返回值追到scheduler的OR合并、fence与最终free，不依据layerwise名称猜测释放结果。具体分账方法见[prefix/chunk生命周期](prefix-chunk-lifecycle.md)。
 
 对 P、D 独立追踪 Attention 的实际 process group，以及每个组件最终的 local shape。启动参数 TP、EP 不能替代模块内部的 Attention TP。MLA latent、索引或 compressor state 可能与 Query heads 使用不同的复制/切分规则；CP 也可能使窗口重叠、边界页或 state 在多个 rank 保留。重新生成各 stage/rank 的 cache groups 和 pool bytes/block，不能先算完整模型池填充再机械除卡数。
 

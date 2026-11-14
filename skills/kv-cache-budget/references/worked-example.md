@@ -29,6 +29,8 @@
 
 `multiplicity` 表示相同规则的独立分配组数量，不是层数；层/槽位和页填充已包含在 pool 单位成本内。仅适用于独立 group block 消耗可加的共享池：有跨请求共享物理页、prefix 检查点或 connector 持块时，需在外部去重/补充，脚本输出是未去重的条件预算。
 
+该脚本不输出逐组件prefix/chunk分账，也不推导checkpoint retention、PD延迟释放或layerwise物理buffer reuse。正文须另外按[分账与释放生命周期](prefix-chunk-lifecycle.md)列明这些项；只给本脚本的总数，不能称为包含全部prefix cache的节点驻留量。
+
 | 请求长度 | 请求 F | 总块数 | bytes | GiB |
 | ---: | ---: | ---: | ---: | ---: |
 | 131072 | 8192 | 7760 | 4593920000 | 4.278421 |
