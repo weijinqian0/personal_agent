@@ -10,7 +10,7 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 ## 获取证据
 
 1. 查找用户指定的本地仓库和部署日志，记录模型 config、后端 commit、未提交相关修改及实际启动参数。有多个 checkout 时明确使用哪一个。缺少资料仍可给条件公式，但不制造精确部署数值。
-2. 根据模型 config 和实际构造路径列出缓存组件：全局 K/V 或 latent、索引、SWA、主/索引 compressor state、递推/卷积状态、MTP/DSpark。需要结构公式时读取 [Attention 与状态公式](references/attention-formulas.md)。
+2. 根据模型 config 和实际构造路径列出缓存组件：全局 K/V 或 latent、索引、SWA、主/索引 compressor state、递推/卷积状态、MTP/DSpark。需要结构公式或不同Attention对比时读取 [Attention 与状态公式](references/attention-formulas.md)，使用其中prefix/chunk双列公式表。
 3. 沿 `get_kv_cache_spec()` 追到 dtype 解析、页字节属性、runner 分配/reshape、缓存分组和调度器回收逻辑。分析 vLLM/vllm-ascend 时读取 [源码查询路径](references/source-tracing.md)，按符号搜索，文件位置不能当成跨版本事实。
 4. 从日志核对 group geometry、块数和 registered bytes。若可以取比值，先确认分子分母属于同一 rank、同一池、同一分配范围。记录证据来源为源码、日志、论文或显式假设。
 
@@ -53,6 +53,8 @@ block_size不是chunk_size、压缩后storage_block_size或固定ring行数。�
 ## 逐组件拆分 prefix cache 与 chunk
 
 具体容量分析时，对每类 Attention 块的实际缓存组件分别给出 prefix cache 与当前 chunk 两列，不先合并长度只给总数。涉及 prefix、SWA、异步或 PD 时，读取 [分账与释放生命周期](references/prefix-chunk-lifecycle.md)，按其中步骤形成完整账目。
+
+用户要求梳理不同Attention公式时，用一张表按“MHA/GQA/MQA、紧凑或展开MLA、压缩主KV、Indexer/folded、SWA、各类state”分行，分别列prefix与chunk公式；区分Attention结构和其缓存组件，一个模型可能同时包含多行。具体模型只保留相关行，并补实际owner、dtype/scale、来源和数值。表内组件数据与统一pool成本不能混为一列，Q历史、活跃尾窗及固定状态不可因双列展示而漏掉。
 
 - 按物理 owner 枚举主KV、索引、folded/重排副本、SWA、compressor与递推state；consumer及别名不能重复计费。
 - 明确命中前缀P、此前chunk历史Q、当前chunk C与所有未结算批次F。Q不得消失，也不得伪装成最初命中的P；异步时逐批说明F由哪些位置组成。
@@ -125,6 +127,8 @@ python3 scripts/calculate_pool.py --input /path/to/layout-and-requests.json
 检查：组件无遗漏；跨 dtype 字节正确；压缩前后 token 单位正确；共享页不重复；请求 F 未超过全局上界；截断/边界/retention 未漏；单位一致；快照与日志是否对应。比较旧估算时逐项解释结构、dtype、block、group、MTP、async、长度和单位差异。
 
 输出至少包含：条件与版本、组件表、公式及 bytes/MiB/GiB、P/D 与多请求作用域、日志交叉验证、尚未确认项。仅有静态证据时称“条件预算”，不称实测峰值，不将本次数字写成模型通用常数。用户只要求分析时，不修改启动配置或服务。
+
+具体容量答案最后必须给简短结论：采用的模型/执行条件、每请求每rank的P/D结果及其口径、是否已计异步多批、额外prefix或延迟页的补充项。不把活跃预算叫作节点总显存；未知保留量用条件式表示而非填0。用户质疑结果偏小时，从长期记录、各类在途state、padding和真实backing分配对账，不无依据把整个缓存再乘2，也不把单请求静态预算当作部署显存建议。
 
 ## 详细计算过程的交付要求
 

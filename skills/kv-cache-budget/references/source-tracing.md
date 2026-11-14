@@ -63,6 +63,8 @@ rg -n 'attention_tp|dp_attention|tensor_parallel|data_parallel|pipeline_parallel
 
 prefix命中应从实际boundary匹配逻辑推导最少窗口页，从retention mask和淘汰逻辑推导全部驻留页。检查被请求释放的页是否仍带hash进入可复用free queue，不能把“释放引用”解释成立即清空缓存，也不能把可淘汰缓存全当成不可用容量。PD沿connector返回值追到scheduler的OR合并、fence与最终free，不依据layerwise名称猜测释放结果。具体分账方法见[prefix/chunk生命周期](prefix-chunk-lifecycle.md)。
 
+特别检查backend patch是否绕过上游config字段、读取旧环境变量或重写协调器构造；只有沿运行版本的调用链追到实际retention成员和cache_blocks入参，才能确认生效默认。配置字段、文档与实际分支冲突时显式报告差异，不照搬字段默认值，也不未经授权修复生产代码。压缩混合模型的命中粒度需查各group的逻辑block及协调器LCM/partial-hit逻辑，不直接用base block对齐名义命中率。
+
 对 P、D 独立追踪 Attention 的实际 process group，以及每个组件最终的 local shape。启动参数 TP、EP 不能替代模块内部的 Attention TP。MLA latent、索引或 compressor state 可能与 Query heads 使用不同的复制/切分规则；CP 也可能使窗口重叠、边界页或 state 在多个 rank 保留。重新生成各 stage/rank 的 cache groups 和 pool bytes/block，不能先算完整模型池填充再机械除卡数。
 
 若最终配置/日志未给足布局，向用户说明缺的是哪项、会影响哪个组件，索取完整启动命令或必要参数。输出中标注已确认/假设/待补充；不把未知并行值悄悄置为1。
