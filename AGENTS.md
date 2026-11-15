@@ -1,5 +1,9 @@
 # HBM 估算请求的路由
 
+## KV 部署报告的可执行门禁
+
+具体KV部署需求报告使用[交付门禁](skills/kv-cache-budget/references/release-gate.md)及 `skills/kv-cache-budget/scripts/release_budget.py`。先验证逐组件状态生命周期和P/Q/各chunk证据账，再发布由入口生成的结果；没有当前账本绑定的复核、退出非零或result.status不是released时，只报告缺口与已知小计，不手写部署总数绕过。源码理解和review身份仍需真实独立复核；脚本和CI不保证任意自由聊天内容。概念或明确限定静态payload的请求不扩大范围。
+
 ## 默认推理后端背景
 
 用户未另行指定、且实际部署证据未表明其他后端时，HBM、权重、KV Cache、激活及运行时占用分析默认采用 **vLLM + vLLM-Ascend（Ascend 执行路径）**，不再重复询问后端名称。用户显式指定的其他后端或已确认的实际部署优先；发生冲突时说明差异，不混用执行路径。

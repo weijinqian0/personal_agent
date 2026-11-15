@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "identity": {
+    "model": null,
+    "model_revision": null,
+    "hardware": null,
+    "role": null,
+    "rank": null,
+    "stage": null,
+    "scope_id": null,
+    "analyst": null,
+    "analysis_kind": "conditional",
+    "backends": {}
+  },
+  "parameters": {
+    "length": {"status": "unknown", "value": null, "evidence_ids": []},
+    "prefix_alignment": {"status": "unknown", "value": null, "evidence_ids": []},
+    "block_size": {"status": "unknown", "value": null, "evidence_ids": []},
+    "tp": {"status": "unknown", "value": null, "evidence_ids": []},
+    "dp": {"status": "unknown", "value": null, "evidence_ids": []},
+    "pp": {"status": "unknown", "value": null, "evidence_ids": []},
+    "pcp": {"status": "unknown", "value": null, "evidence_ids": []},
+    "dcp": {"status": "unknown", "value": null, "evidence_ids": []},
+    "max_num_batched_tokens": {"status": "unknown", "value": null, "evidence_ids": []},
+    "max_concurrent_batches": {"status": "unknown", "value": null, "evidence_ids": []},
+    "async_scheduling": {"status": "unknown", "value": null, "evidence_ids": []},
+    "prefix_cache_enabled": {"status": "unknown", "value": null, "evidence_ids": []},
+    "speculative_method": {"status": "unknown", "value": null, "evidence_ids": []},
+    "num_speculative_tokens": {"status": "unknown", "value": null, "evidence_ids": []},
+    "kv_dtype": {"status": "unknown", "value": null, "evidence_ids": []}
+  },
+  "evidence": [],
+  "checks": {},
+  "inventory": [],
+  "requests": [],
+  "components": [],
+  "layout": {},
+  "cost_checks": {}
+}

@@ -2,6 +2,21 @@
 
 个人 Agent Skills。
 
+## KV Cache 报告门禁
+
+具体KV部署报告增加[证据账与受控交付入口](skills/kv-cache-budget/references/release-gate.md)：校验源码文件指纹与版本、全部Attention组件的状态生命周期和prefix/Q/各chunk分账、物理布局与allocator/admission/capacity成本，并绑定独立复核记录。未通过时退出非零，报告部署需求为null；失败重跑覆盖旧成功报告。原有算术脚本继续保留，不再被视作完成证据核查。
+
+```bash
+python3 skills/kv-cache-budget/scripts/release_budget.py \
+  --input budget-reports/<case>/ledger.json \
+  --review budget-reports/<case>/review.json \
+  --output-dir .budget-gate-output/<case>
+```
+
+使用[账本模板](skills/kv-cache-budget/references/ledger-template.json)开始。没有review时先省略`--review`，生成缺项报告及待复核请求；不能自动批准。仓库工作流 `KV budget gate / validate` 运行回归与已提交账本的重新校验，只在成功后上传生成产物。将其设为required check及配置独立PR复核，需要管理员另外启用仓库规则；新增workflow本身不会开启分支保护。
+
+边界：门禁强制约束通过入口生成的报告，不能拦截手写聊天，也不能自动证明源码解释或复核者身份真实。现有模板与synthetic测试夹具不是实际部署证据。GitHub更新不会自动安装到本机Agent skills。
+
 ## 默认推理后端背景
 
 用户未另行指定、且实际部署证据未表明其他后端时，HBM、权重、KV Cache、激活及运行时占用分析默认采用 **vLLM + vLLM-Ascend（Ascend 执行路径）**，不再重复询问后端名称。用户显式指定的其他后端或已确认的实际部署优先；发生冲突时说明差异，不混用执行路径。

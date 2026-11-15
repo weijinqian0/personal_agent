@@ -15,6 +15,12 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 
 ## 容量计算交付门禁：先逐模块分账，再汇总
 
+### 受控报告入口
+
+具体部署需求/逐rank容量报告按[交付门禁](references/release-gate.md)建立结构化证据账，并运行 `scripts/release_budget.py --input ledger.json --review review.json --output-dir <目录>`。入口核验源文件指纹和版本绑定、完整组件inventory与状态生命周期、P/Q/各批chunk/窗口/额外保留分账、公共在途额度、物理映射及三路成本，并要求与当前账本绑定的独立复核。只在退出0时交付生成的部署/条件报告；退出非零时交付生成的缺口与已知小计，不在聊天中手写一个绕过门禁的总数。只询问概念或明确只求静态有效量时沿用原范围。
+
+先填[账本模板](references/ledger-template.json)，未知保留unknown；读过skill、算术正确、旧的 `audit_layout.py` 通过或生成过文件，都不等于本入口通过。每个state必须提供write/restore/retain/release/deduplicate来源；不能只根据shape补表。独立复核不是计算者自行改名签署；更改输入或证据后重新复核。门禁只能约束使用该入口的产物，不能技术上拦截任意自由文本，CI也不能自动判断源码解释真实；不得宣称已保证所有Agent回答。
+
 ### 部署总量必须完成物理布局映射
 
 先区分五种口径：有效载荷 `payload_bytes`、组件分页小计 `component_page_bytes`、请求物理池需求 `request_pool_need_bytes`、预分配池 `allocated_pool_bytes`、实测峰值 `observed_peak_bytes`。未知字段保留待确认/null，不互相替代；admission上界标为上界，不称实测写入量。
