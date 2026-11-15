@@ -2,6 +2,12 @@
 
 个人 Agent Skills。
 
+## 默认推理后端背景
+
+用户未另行指定、且实际部署证据未表明其他后端时，HBM、权重、KV Cache、激活及运行时占用分析默认采用 **vLLM + vLLM-Ascend（Ascend 执行路径）**，不再重复询问后端名称。用户显式指定的其他后端或已确认的实际部署优先；发生冲突时说明差异，不混用执行路径。
+
+默认后端只确定分析路径，不确定硬件代际、vLLM/vLLM-Ascend 版本、KV dtype、并行布局、chunk、异步、MTP或缓存池配置；这些仍按实际代码、配置和日志取证，关键未知项保留条件并集中补问。优先追踪配套vLLM与vLLM-Ascend的注册、替换及最终生效路径；只找到上游vLLM实现不代表Ascend插件沿用同样布局。模型官方参考实现仅用于解释结构或明确标注的辅助对照，不能替代默认后端的物理容量账，也不能因缺参数而静默切换到参考实现或BF16布局。
+
 ## 完整 HBM 估算
 
 当请求是“估算一个模型的 HBM/显存占用”时，使用 [model-hbm-budget](skills/model-hbm-budget/SKILL.md) 总入口，联动下面三个专项 skill。完整方法见 [HBM 占用指南](skills/model-hbm-budget/references/hbm-guide.md)，仓库内自动路由见 [AGENTS.md](AGENTS.md)。总入口只负责编排、统一配置和去重合账，三个专项继续维护各自算法。
