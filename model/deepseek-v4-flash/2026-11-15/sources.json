@@ -1,0 +1,184 @@
+{
+  "analysis_source_revisions": {
+    "vllm_ascend": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+    "weight_activation_vllm_local_reference": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+    "KV_paired_vllm": "24420b7a341af37a9bc3186e6fc6062512e0aa58"
+  },
+  "deployment_revision_verified": false,
+  "repository_sources": [
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/models/deepseek_v4/model.py",
+      "sha256": "4327e0360c38b63898f107cdb70569ff2aa2bd10099bf324183ca57a3da31f0d"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/models/deepseek_v4/indexer.py",
+      "sha256": "88a76540ec396c22d55ab7aa2effb0537620ac11933d818b0eea0ee52f6b5ac8"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/models/deepseek_v4/compressor.py",
+      "sha256": "757e21d9e95a1bdc19c42921939830d8ba8d210cea635b7e5a694ce351c7a5ca"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/models/deepseek_v4/dspark.py",
+      "sha256": "d6108fa94a8752c32ba324a5cb115e2bbcc325e6ef8fa109df95ea6e09c29e6c"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/attention/dsa_v1.py",
+      "sha256": "6f7eebe31b361d88370f8e242d9b41471b6926e0d7fb44f50fb6917b200389c8"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/dsa.py",
+      "sha256": "26e4aa10732a7ec7081980e8d1376fc6f7af231825198feaffb51f90cca2718c"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/fused_moe/shared_experts.py",
+      "sha256": "c6c87a5272a8037faa9770294c6c0dfe1256c3db36023533e588cbc6c21482ba"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/fused_moe/moe_comm_method.py",
+      "sha256": "59ae754976a0c54b353ca8fcfd7a366490bb637fdcebe04e8d24c8f8f94588f3"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/fused_moe/token_dispatcher.py",
+      "sha256": "aa39922b50f2ae0762cf97f4e450dc08d50681e2dd1ae9ddd78e84dc84bfa81e"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/fused_moe/moe_utils.py",
+      "sha256": "37686a48aab6f8434131be6dc8773d6a31b7c9236ad96f887d3b9a631b30118c"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ops/fused_moe/prepare_finalize.py",
+      "sha256": "780624434568705796527548a6de133472f1b3ff8cdbc60665cfb4725535b36f"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/quantization/methods/w4a8/w4a8_mxfp4.py",
+      "sha256": "9b32663e0d320b703f457a4ee689ce01dee36a9ee7f8d48f608606e1fe222c74"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ascend_config.py",
+      "sha256": "f756aac85ee180f60d9f441fbae22a8e658ae888d8a951f2bdd241fb5b1b5620"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/ascend_forward_context.py",
+      "sha256": "3cd09abc8ca466786324de89f575b41437e21167f1bb4c48cb8fde2fcce1c00e"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/worker/dspark_utils.py",
+      "sha256": "c23a3b1e39c403f8006379a55f8419909bdbda00dbff9018519f9d5e0994ea39"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/worker/v2/spec_decode/dspark/speculator.py",
+      "sha256": "bc9e4bf9743f829cb168d88fdfef7b620ca12efe3c877b953378356199f05c64"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "csrc/torch_binding.cpp",
+      "sha256": "f9b2e8a4230ad5bdd9bf890a483117f324dea9852623d503aac90162d2b50df9"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "revision": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+      "path": "vllm/config/parallel.py",
+      "sha256": "8b596ae3d49509a74728f88e3c56444b8a026919908a17c225855526dd33508c"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "revision": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+      "path": "vllm/v1/worker/gpu/spec_decode/dspark/speculator.py",
+      "sha256": "dcf4abdedbd2bddd0d76be198ccf5b4e467c46f645038c35fcab821491a35b03"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "revision": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash/speculator.py",
+      "sha256": "f9c100f42f9326e48eb84e89281897e859ba761943f54d593523555ccd98dc63"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "revision": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+      "path": "vllm/v1/worker/gpu/spec_decode/speculator.py",
+      "sha256": "3a1ab15bf8b20918852eb835fe9755046e99dcbac6ba6ca3d414949fc8bc695a"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "revision": "59e6682c21595b3f71c4a569318d1a1ac328add3",
+      "path": "vllm/v1/worker/gpu/spec_decode/eagle/eagle3_utils.py",
+      "sha256": "201ee875fcc3d076a8fc1f3876dcbf85736b221a368555243a8987ff26a1674e"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/utils.py",
+      "sha256": "61a014da419bbd43e24c66f4cacd13da340c7f5e1720252b4cfeca0231c6372d"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/patch/worker/patch_distributed.py",
+      "sha256": "d4679774402bd2c3f6d23fe01a75ae2d5ae91cb5f845181231d850fcecf4e83f"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/patch/worker/_hccl_pg_registry.py",
+      "sha256": "a30ece7f18625c51b87a05e0c24a8ca416ebe421aaeee80f35424232e3df35ce"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "vllm_ascend/distributed/parallel_state.py",
+      "sha256": "0334d2757860872a83e540e985ab019be078459fd912afe719531c5e631b5331"
+    },
+    {
+      "repository": "vllm-project/vllm-ascend",
+      "revision": "d476b009777343b1b5e4a3550e4a34f43108ed8e",
+      "path": "tests/SIT/cases/models/configs/DeepSeek/DeepSeek_V4_Flash_K15_dspark_A5.yaml",
+      "sha256": "7c2f2a7960ba0c65e40e453cd904077dbffb3e46b6212bbb454eb5859c40aef8"
+    }
+  ],
+  "public_documentation": [
+    {
+      "title": "CANN 9.2 HCCL_BUFFSIZE",
+      "url": "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/920beta2/commlib/hcclug/docs/zh/user_guide/hccl_env/HCCL_BUFFSIZE.md"
+    },
+    {
+      "title": "TorchNPU 7.2 tuning/configuration",
+      "url": "https://www.hiascend.com/document/detail/zh/Pytorch/720/ptmoddevg/trainingmigrguide/performance_tuning_0077.html"
+    }
+  ],
+  "HTML_sha256": "1335b24aea813b0e73b0284d2b8e83c275e5f591c42314b61c98b8188a0a0c67",
+  "reproduction_boundary": "calculate.py reproduces stored scalar geometry and arithmetic only; it does not execute kernels, parse new source, prove lifecycle, or resolve the blocked layout/admission gate"
+}

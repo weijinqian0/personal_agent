@@ -1,0 +1,581 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-15",
+  "timezone": "Asia/Shanghai",
+  "model": "DeepSeek V4 Flash",
+  "analysis_kind": "conversation archive / partial static estimate / user-defined planning assumption",
+  "measured": false,
+  "inputs": {
+    "user_confirmed": {
+      "model_variant": "Flash",
+      "hardware": "A5",
+      "backend": "vLLM-Ascend",
+      "weight_quantization": "native FP4 routed experts + FP8 Linear",
+      "KV_dtype": "FP8",
+      "parallel_literal": {
+        "TP": 4,
+        "DP": 4,
+        "EP": 4,
+        "PP": 1
+      },
+      "max_num_batched_tokens_per_DP": 8192,
+      "dspark_transformer_layers": 3,
+      "shared_expert_multistream": true
+    },
+    "user_budget_assumptions": {
+      "async_KV_multiplier": 2,
+      "graph_pool_net_extra_GiB": [
+        1,
+        2
+      ],
+      "meaning": "KV x2 planning assumption, not proven full-history physical duplication"
+    },
+    "calculated_reference": {
+      "model_architecture": "Flash-0731 text reference, revision unconfirmed",
+      "main_layers": 43,
+      "draft_layers": 3,
+      "hidden_size": 4096,
+      "expert_intermediate_size": 2048,
+      "routed_experts": 256,
+      "top_k": 6,
+      "vocab_size": 129280,
+      "TP": 4,
+      "DP": 4,
+      "effective_EP": 16,
+      "PP": 1,
+      "SP": true,
+      "CP": 1,
+      "expert_internal_TP": 1,
+      "shared_expert_weights": "TP4 sharded",
+      "shared_target_draft_vocab": true,
+      "prefix_target_rate": 0.9,
+      "prefix_alignment_tokens": 4096,
+      "block_size": 32,
+      "length_tokens": [
+        131072,
+        524288,
+        1048576,
+        2097152
+      ],
+      "length_convention": "K=1024, M=1024^2 tokens",
+      "local_reference_max_position_embeddings": 1048576,
+      "scope": "single long request and each rank in its TP group; do not multiply per-card KV by DP"
+    },
+    "unknown": [
+      "actual effective EP layout",
+      "deployed model/software revisions",
+      "max_num_seqs",
+      "num_speculative_tokens",
+      "draft sampling method and head_dtype",
+      "graph mode and capture sizes",
+      "HCCL_BUFFSIZE and all initialized domains",
+      "complete operator workspace and all activation phases",
+      "actual allocated KV pool and full retention lifecycle",
+      "NPU capacity and runtime/allocator slack",
+      "non-KV cross-batch lifetime increments"
+    ]
+  },
+  "units": {
+    "GiB_bytes": 1073741824,
+    "MiB_bytes": 1048576,
+    "MB_configuration_conversion": "MiB assumption, deployment implementation unverified"
+  },
+  "weights": {
+    "base_EP16_bytes": 13563475064,
+    "module_bytes": {
+      "routed_experts": 9839837184,
+      "attention": 1492254720,
+      "indexer": 192675840,
+      "compressor": 613941760,
+      "shared_experts": 298450944,
+      "vocab": 529530880,
+      "router": 289406976,
+      "connection": 155512440,
+      "draft_extra": 151864320
+    },
+    "payload_bytes": 12725073016,
+    "scale_bytes": 638976000,
+    "extra_identified_copy_bytes": 199426048,
+    "actual_EP4_internal_TP1_bytes": 43082986616,
+    "shared_expert_DP_extra_bytes": 895352832,
+    "separate_draft_embedding_and_head_extra_bytes": 529530880,
+    "physical_NZ_extra_bytes": null,
+    "load_peak_bytes": null
+  },
+  "activation": {
+    "phase_core": {
+      "indexer-hadamard": {
+        "bytes": 1157791744,
+        "MiB": 1104.15625,
+        "GiB": 1.078277587890625
+      },
+      "sparse-attention": {
+        "bytes": 906133504,
+        "MiB": 864.15625,
+        "GiB": 0.843902587890625
+      },
+      "moe-act-quant": {
+        "bytes": 650543104,
+        "MiB": 620.40625,
+        "GiB": 0.605865478515625
+      },
+      "moe-combine-shared": {
+        "bytes": 841121792,
+        "MiB": 802.15625,
+        "GiB": 0.783355712890625
+      }
+    },
+    "max_core_bytes": 1157791744,
+    "non_SP_indexer_stage_core_bytes": 1762263040,
+    "full_activation_peak_bytes": null,
+    "notes": [
+      "eager lifetime reference, balanced routing",
+      "stages take max, not sum",
+      "last target layer has two aux buffers; initial 1.14GiB revised to 1.078277588GiB",
+      "W4A8 routed GMM1 produces BF16; binding allocates y_origin even output_origin=false",
+      "shared experts multistream overlap included in MoE core stage"
+    ]
+  },
+  "persistent": {
+    "target_MTP_hidden_bytes": 268435456,
+    "target_shared_TopK_bytes": 16777216,
+    "V2_dspark_combined_hidden_bytes": 67108864,
+    "known_sum_bytes": 352321536,
+    "other_bytes": null
+  },
+  "hccl": {
+    "ordinary_domain_buffer_MiB_per_direction": 200,
+    "DP_domain_buffer_MiB_per_direction": 50,
+    "directions": 2,
+    "reference_domains": [
+      "tp",
+      "dp",
+      "ep",
+      "mc2"
+    ],
+    "MC2_env_B_cases": [
+      200,
+      512,
+      1024,
+      2048
+    ],
+    "ordinary_extra_domain_bytes": 419430400,
+    "extra_domains_bytes": null,
+    "formula_core_bytes": "2*(200+50+200+B)*2^20"
+  },
+  "kv_geometry": {
+    "page_buckets_bytes": [
+      4224,
+      19456
+    ],
+    "raw_tuple_counts": [
+      21,
+      20,
+      46,
+      21,
+      20
+    ],
+    "approximate_gcd": 23,
+    "normal_slots": 22,
+    "trailing_slots": 3,
+    "tuple_slots": 25,
+    "allocator_unit_bytes": 592000,
+    "admission_unit_bytes": 544640,
+    "groups": [
+      {
+        "id": 0,
+        "components": {
+          "c4_main": 21,
+          "c4_index": 21
+        },
+        "logical_block_tokens": 128,
+        "window_tokens": 0,
+        "owners_per_bucket": [
+          21,
+          21
+        ],
+        "normal_owners_per_bucket": [
+          21,
+          21
+        ],
+        "draft_trailing_owners": 0
+      },
+      {
+        "id": 1,
+        "components": {
+          "c128_main": 20
+        },
+        "logical_block_tokens": 4096,
+        "window_tokens": 0,
+        "owners_per_bucket": [
+          0,
+          20
+        ],
+        "normal_owners_per_bucket": [
+          0,
+          20
+        ],
+        "draft_trailing_owners": 0
+      },
+      {
+        "id": 2,
+        "components": {
+          "target_swa": 22,
+          "draft_swa": 1
+        },
+        "logical_block_tokens": 32,
+        "window_tokens": 128,
+        "owners_per_bucket": [
+          0,
+          23
+        ],
+        "normal_owners_per_bucket": [
+          0,
+          22
+        ],
+        "draft_trailing_owners": 1
+      },
+      {
+        "id": 3,
+        "components": {
+          "target_swa": 21,
+          "draft_swa": 2
+        },
+        "logical_block_tokens": 32,
+        "window_tokens": 128,
+        "owners_per_bucket": [
+          0,
+          23
+        ],
+        "normal_owners_per_bucket": [
+          0,
+          21
+        ],
+        "draft_trailing_owners": 2
+      },
+      {
+        "id": 4,
+        "components": {
+          "c4_main_state": 21,
+          "c4_index_state": 21
+        },
+        "logical_block_tokens": 2,
+        "window_tokens": 8,
+        "owners_per_bucket": [
+          21,
+          21
+        ],
+        "normal_owners_per_bucket": [
+          21,
+          21
+        ],
+        "draft_trailing_owners": 0
+      },
+      {
+        "id": 5,
+        "components": {
+          "c128_state": 20
+        },
+        "logical_block_tokens": 4,
+        "window_tokens": 128,
+        "owners_per_bucket": [
+          0,
+          20
+        ],
+        "normal_owners_per_bucket": [
+          0,
+          20
+        ],
+        "draft_trailing_owners": 0
+      }
+    ],
+    "single_chunk_tokens": 8192,
+    "two_inflight_chunk_tokens": [
+      8192,
+      8192
+    ],
+    "user_multiplier": 2,
+    "extra_retained_tokens_assumption": 0,
+    "complete_request_mapping": false,
+    "gate_status": "blocked",
+    "request_pool_need_bytes": null,
+    "allocated_pool_bytes": null,
+    "notes": [
+      "known active pages only; additional evictable/checkpoint/lookahead retention unclosed",
+      "component pages plus hybrid overhead, not payload-only",
+      "user x2 budget distinct from two-chunk page union"
+    ]
+  },
+  "results": [
+    {
+      "label": "128K",
+      "sequence_tokens": 131072,
+      "scope": "single long request / its TP ranks; no CP; not multiplied by DP",
+      "prefix_tokens": 114688,
+      "settled_tokens_single": 8192,
+      "settled_tokens_two": 0,
+      "prefix_hit_rate": 0.875,
+      "chunks_single": [
+        8192
+      ],
+      "chunks_async_two": [
+        8192,
+        8192
+      ],
+      "single_chunk_known_mapping_bytes": 4591552000,
+      "single_chunk_component_bytes": 3602577920,
+      "single_chunk_hybrid_extra_bytes": 988974080,
+      "user_async_KV_multiplier": 2,
+      "user_KV_budget_bytes": 9183104000,
+      "user_KV_budget_GiB": 8.5524320602417,
+      "two_inflight_known_mapping_bytes": 8531904000,
+      "two_inflight_component_bytes": 6665468416,
+      "two_inflight_hybrid_extra_bytes": 1866435584,
+      "physical_request_pool_need_bytes": null,
+      "allocated_pool_bytes": null,
+      "complete_HBM_peak_bytes": null,
+      "accounted_budget_cases": [
+        {
+          "HCCL_BUFFSIZE": 200,
+          "accounted_budget_bytes": [
+            26693582968,
+            27767324792
+          ],
+          "accounted_budget_GiB": [
+            24.860336415469646,
+            25.860336415469646
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 1024,
+          "accounted_budget_bytes": [
+            28421636216,
+            29495378040
+          ],
+          "accounted_budget_GiB": [
+            26.469711415469646,
+            27.469711415469646
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 2048,
+          "accounted_budget_bytes": [
+            30569119864,
+            31642861688
+          ],
+          "accounted_budget_GiB": [
+            28.469711415469646,
+            29.469711415469646
+          ]
+        }
+      ],
+      "context_support": "within local reference config limit; actual deployment not verified"
+    },
+    {
+      "label": "512K",
+      "sequence_tokens": 524288,
+      "scope": "single long request / its TP ranks; no CP; not multiplied by DP",
+      "prefix_tokens": 471040,
+      "settled_tokens_single": 45056,
+      "settled_tokens_two": 36864,
+      "prefix_hit_rate": 0.8984375,
+      "chunks_single": [
+        8192
+      ],
+      "chunks_async_two": [
+        8192,
+        8192
+      ],
+      "single_chunk_known_mapping_bytes": 6467008000,
+      "single_chunk_component_bytes": 5167577600,
+      "single_chunk_hybrid_extra_bytes": 1299430400,
+      "user_async_KV_multiplier": 2,
+      "user_KV_budget_bytes": 12934016000,
+      "user_KV_budget_GiB": 12.045741081237793,
+      "two_inflight_known_mapping_bytes": 10407360000,
+      "two_inflight_component_bytes": 8230468096,
+      "two_inflight_hybrid_extra_bytes": 2176891904,
+      "physical_request_pool_need_bytes": null,
+      "allocated_pool_bytes": null,
+      "complete_HBM_peak_bytes": null,
+      "accounted_budget_cases": [
+        {
+          "HCCL_BUFFSIZE": 200,
+          "accounted_budget_bytes": [
+            30444494968,
+            31518236792
+          ],
+          "accounted_budget_GiB": [
+            28.35364543646574,
+            29.35364543646574
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 1024,
+          "accounted_budget_bytes": [
+            32172548216,
+            33246290040
+          ],
+          "accounted_budget_GiB": [
+            29.96302043646574,
+            30.96302043646574
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 2048,
+          "accounted_budget_bytes": [
+            34320031864,
+            35393773688
+          ],
+          "accounted_budget_GiB": [
+            31.96302043646574,
+            32.96302043646574
+          ]
+        }
+      ],
+      "context_support": "within local reference config limit; actual deployment not verified"
+    },
+    {
+      "label": "1M",
+      "sequence_tokens": 1048576,
+      "scope": "single long request / its TP ranks; no CP; not multiplied by DP",
+      "prefix_tokens": 942080,
+      "settled_tokens_single": 98304,
+      "settled_tokens_two": 90112,
+      "prefix_hit_rate": 0.8984375,
+      "chunks_single": [
+        8192
+      ],
+      "chunks_async_two": [
+        8192,
+        8192
+      ],
+      "single_chunk_known_mapping_bytes": 8967616000,
+      "single_chunk_component_bytes": 7254243840,
+      "single_chunk_hybrid_extra_bytes": 1713372160,
+      "user_async_KV_multiplier": 2,
+      "user_KV_budget_bytes": 17935232000,
+      "user_KV_budget_GiB": 16.703486442565918,
+      "two_inflight_known_mapping_bytes": 12907968000,
+      "two_inflight_component_bytes": 10317134336,
+      "two_inflight_hybrid_extra_bytes": 2590833664,
+      "physical_request_pool_need_bytes": null,
+      "allocated_pool_bytes": null,
+      "complete_HBM_peak_bytes": null,
+      "accounted_budget_cases": [
+        {
+          "HCCL_BUFFSIZE": 200,
+          "accounted_budget_bytes": [
+            35445710968,
+            36519452792
+          ],
+          "accounted_budget_GiB": [
+            33.011390797793865,
+            34.011390797793865
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 1024,
+          "accounted_budget_bytes": [
+            37173764216,
+            38247506040
+          ],
+          "accounted_budget_GiB": [
+            34.620765797793865,
+            35.620765797793865
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 2048,
+          "accounted_budget_bytes": [
+            39321247864,
+            40394989688
+          ],
+          "accounted_budget_GiB": [
+            36.620765797793865,
+            37.620765797793865
+          ]
+        }
+      ],
+      "context_support": "within local reference config limit; actual deployment not verified"
+    },
+    {
+      "label": "2M",
+      "sequence_tokens": 2097152,
+      "scope": "single long request / its TP ranks; no CP; not multiplied by DP",
+      "prefix_tokens": 1884160,
+      "settled_tokens_single": 204800,
+      "settled_tokens_two": 196608,
+      "prefix_hit_rate": 0.8984375,
+      "chunks_single": [
+        8192
+      ],
+      "chunks_async_two": [
+        8192,
+        8192
+      ],
+      "single_chunk_known_mapping_bytes": 13968832000,
+      "single_chunk_component_bytes": 11427576320,
+      "single_chunk_hybrid_extra_bytes": 2541255680,
+      "user_async_KV_multiplier": 2,
+      "user_KV_budget_bytes": 27937664000,
+      "user_KV_budget_GiB": 26.018977165222168,
+      "two_inflight_known_mapping_bytes": 17909184000,
+      "two_inflight_component_bytes": 14490466816,
+      "two_inflight_hybrid_extra_bytes": 3418717184,
+      "physical_request_pool_need_bytes": null,
+      "allocated_pool_bytes": null,
+      "complete_HBM_peak_bytes": null,
+      "accounted_budget_cases": [
+        {
+          "HCCL_BUFFSIZE": 200,
+          "accounted_budget_bytes": [
+            45448142968,
+            46521884792
+          ],
+          "accounted_budget_GiB": [
+            42.326881520450115,
+            43.326881520450115
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 1024,
+          "accounted_budget_bytes": [
+            47176196216,
+            48249938040
+          ],
+          "accounted_budget_GiB": [
+            43.936256520450115,
+            44.936256520450115
+          ]
+        },
+        {
+          "HCCL_BUFFSIZE": 2048,
+          "accounted_budget_bytes": [
+            49323679864,
+            50397421688
+          ],
+          "accounted_budget_GiB": [
+            45.936256520450115,
+            46.936256520450115
+          ]
+        }
+      ],
+      "context_support": "beyond local reference max_position_embeddings=1048576; capacity extrapolation only"
+    }
+  ],
+  "pie_config": {
+    "HCCL_BUFFSIZE": 2048,
+    "graph_GiB": 2,
+    "denominator": "accounted budget subtotal, not complete device peak or capacity",
+    "includes_unresolved_terms": false
+  },
+  "complete_HBM_peak_bytes": null,
+  "unresolved_terms": "Delta(L): additional weight physical format/pools, KV extra retention or actual allocation, operator workspace and missing phases, extra persistent/communication/runtime/allocator and non-KV async increments",
+  "interpretation_warnings": [
+    "EP4 literal is unresolved; baseline calculations use effective EP16",
+    "2M exceeds local reference model position limit; capacity extrapolation only",
+    "no unconditional deployment/capacity/concurrency conclusion",
+    "archive is not a released KV deployment report"
+  ]
+}
