@@ -9,6 +9,12 @@ description: 根据模型配置、推理后端源码与运行日志，逐组件�
 
 **物理总量交付门禁**：先固定场景与源码版本，再执行实际后端分组算法并保存输入及输出；按最终 group/bucket 复算槽数、空槽/空 bucket、页填充及唯一 backing，不凭层数手填。共享 tuple 的声明布局须通过 `scripts/audit_layout.py` 校验（不替代源码重放）。参数或源码变化后整账重算。物理映射与生命周期未闭合时，`request_pool_need_bytes=null`；不得在用户追问总数时把小计或新补的假设改称最终结果。
 
+## Hybrid / padding 必算项
+
+普通“KV占用/容量”请求应包含物理布局，不自行缩成有效槽位小计。遇到全注意力与GDN/Mamba、SWA、不同压缩率、Indexer或draft混合，先读[Hybrid与padding核算](references/hybrid-padding.md)，分别计算记录/尾页、原生页对齐、group/bucket空槽和MTP尾槽；不默认它们很小或为零。
+
+状态份数/admission规则不是物理成本：`GQA有效KV + N份原始GDN状态`仍是组件账，必须继续追最终block、padded page、分组和唯一backing。量化、MTP或状态模式改变后重放布局，不直接沿用旧padding系数。缺布局证据时，主结论写“物理池需求尚未算完”，`request_pool_need_bytes=null`，不把条件小计当部署总数。
+
 ## 固定核算顺序：证据 → 快照 → 组件 → 生命周期 → 分账 → 分页 → hybrid → 对账
 
 默认分析 vLLM + vLLM-Ascend；用户指定或实际部署证据优先。先查可用的模型 config、后端源码、启动配置和 KV 日志，记录版本与生效路径，不能只凭模型名套公式。默认后端不代表已确认其版本、dtype 或布局。
