@@ -21,8 +21,6 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 
 按用户约定，未明确限定单请求时，默认分析多请求持续供给，以多请求每rank总账为主结论；单请求只作单位成本辅助。多请求不等于已知并发数或必然填满batch：缺少实际持块数时用N表示，并给明确请求数/阶段的条件示例，不擅自固定为2/3条。区分排队、已接入持块、在途计算与D侧请求，分别确认共享前缀；90%命中不意味着请求之间共享同一物理prefix。
 
-多请求先还原调度轨迹，再计算逐阶段持块峰值。优先用实际调度顺序和逐请求 token 数。采用贪心场景时，按给定顺序让每条请求取其剩余可调度量与本批剩余额度的较小值，额度有余才轮到下一条。待接入或严格串行的请求按实际资格处理。区分单批 token 额度和跨批未结算硬上限，只有同一请求可跨批在途时才将其相邻批次叠加。逐请求累积长历史和滑窗页，再按物理前缀去重，取所有可达阶段的最大值。调度分配、双批叠加和双请求 146k 复算见[分账与释放生命周期](references/prefix-chunk-lifecycle.md#两条-146k-请求的贪心调度算例)。
-
 最终账单按“去重后的命中prefix → 已结算历史Q → 活跃历史窗口/固定state → 异步在途增量 → 额外保留”汇总。逐组件prefix/chunk明细仍保留；先形成截止安全结算位置S=P+Q的基线，再在最后统一加所有未结算批次（含当前批）的新增页。详细差分与公共额度规则见[分账与释放生命周期](references/prefix-chunk-lifecycle.md)。这只是展示和归因方式，不改变异步实际生命周期，也不允许在已包含F的完整历史H上重复加chunk。
 
 按用户约定，默认容量预算包含投机解码相关缓存，不再静默采用“无MTP/无draft”。这是估算范围约定，不是宣称后端默认开启投机，也不授权修改启动配置。先从实际配置/代码确定方法、draft模型/原生MTP模块和推测长度；缺失时按[投机缓存核算](references/speculative-cache.md)给出有依据的含投机场景或待确认项。只有用户明确排除或核实实际部署关闭时，才以不含投机为实际配置结论，并注明范围差异。
@@ -71,22 +69,16 @@ block_size不是chunk_size、压缩后storage_block_size或固定ring行数。�
 - 本地已共享前缀按物理页去重；远端命中是否需要取回由 connector 决定。命中不自动减少当前 query 对旧历史的 Attention，也不自动减少 chunk 的在途 state。
 - 从 allocator 明确各 group 的独立 block 消耗和别名关系。共享 backing 的 tensor views 不重复计算；用 pool bytes/block 计费后不再附加同一份 padding。
 
-## 所有 Attention 模块分别计算 Prefix Cache 和 Chunk
+## 逐组件拆分 prefix cache 与 chunk
 
-具体容量估算的正文必须逐个覆盖模型实际使用的所有 Attention 模块，包括 target 和已启用的 draft。按 Attention 模块和实际缓存组件分行，统一使用以下两栏。某类模块有多种缓存时展开子行。多个层可按相同布局合并，注明层数、物理 owner 和共享关系。共享组件的消费者引用 owner 行。
+具体容量分析时，对每类 Attention 块的实际缓存组件分别给出 prefix cache 与当前 chunk 两列，不先合并长度只给总数。涉及 prefix、SWA、异步或 PD 时，读取 [分账与释放生命周期](references/prefix-chunk-lifecycle.md)，按其中步骤形成完整账目。
 
-| Attention 模块 / 缓存组件 | Prefix Cache 计算结果 | Chunk 计算结果 |
-| --- | --- | --- |
-| 每个实际组件各一行 | 用对齐后的命中长度或 checkpoint 页集合代入，列有效记录/状态量、页数及字节 | 用已结算历史和每批在途位置代入，列各批记录与新增或保留的页数及字节 |
-
-具体估算的每一栏都要给数值或带已知参数的条件结果，公式说明属于补充。后端明确无该场景的缓存时写“不适用”并注明依据。共享槽的组件先给自身页与字节，按 group/tuple 单独汇总可去重的池块成本。正文汇总必须能逐项追到同一模块的两栏结果。已结算 Q、执行尾窗与固定 state 可在 Chunk 栏分项或加辅助栏。
-
-按 [Attention 与状态公式](references/attention-formulas.md) 选取模型实际存在的 MHA/GQA/MQA、MLA、压缩 KV、Indexer/folded、SWA、线性 Attention 与各类状态。概念或公式对比可使用符号条件。涉及 prefix、窗口、异步或 PD 时，用 [分账与释放生命周期](references/prefix-chunk-lifecycle.md) 计算物理页及持有时点。
+用户要求梳理不同Attention公式时，用一张表按“MHA/GQA/MQA、紧凑或展开MLA、压缩主KV、Indexer/folded、SWA、各类state”分行，分别列prefix与chunk公式；区分Attention结构和其缓存组件，一个模型可能同时包含多行。具体模型只保留相关行，并补实际owner、dtype/scale、来源和数值。表内组件数据与统一pool成本不能混为一列，Q历史、活跃尾窗及固定状态不可因双列展示而漏掉。
 
 - 按物理 owner 枚举主KV、索引、folded/重排副本、SWA、compressor与递推state；consumer及别名不能重复计费。
 - 明确命中前缀P、此前chunk历史Q、当前chunk C与所有未结算批次F。Q不得消失，也不得伪装成最初命中的P；异步时逐批说明F由哪些位置组成。
 - 每个组件展示 prefix有效数据/物理页、此前chunk保留、当前chunk新增、固定请求状态及重合页；不适用应说明原因，未知保留页数不能填0。
-- 模型包含 SWA 时，在统一的 Prefix Cache / Chunk 表中列出 SWA，可用阶段子行或附表展开。对 target 及实际构建的 draft SWA 分别列出命中边界尾窗、额外 checkpoint 驻留、已结算活跃尾窗、各轮 chunk 在途及多轮同时在途（若后端允许）的记录数、页数与池成本。标明页重合、每组块数和缓存组数，把每个阶段的 SWA 块数纳入对应阶段总账。缺运行参数时仍列条件算例或带代入参数的公式，并标注未确认项。细则与算例见[分账与释放生命周期](references/prefix-chunk-lifecycle.md)。
+- SWA必须分别核算“命中边界所需窗口”“prefix池全部保留checkpoint页”“活跃历史尾窗与chunk在途页”。窗口W不是prefix池容量，也不意味着整个prefix都应保存；活跃窗口admission边界余量不等于checkpoint真实页数。
 - prefix与活跃页按实际物理身份取并集。分别交付活跃请求持块、包括可淘汰prefix的驻留量、新请求边际分配；不能用其中一项冒充另两项。
 - 组件数据账转换为实际group/tuple成本后再汇总，不能给同一group内每个组件各乘一次完整pool成本。页内边界与压缩边界用累计差分，不能对两列分别ceil后直接相加。
 

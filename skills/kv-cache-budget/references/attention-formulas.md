@@ -12,8 +12,6 @@ R(x)表示前x个原始位置累计产生的缓存记录数。令Delta_R=R(S+F)-
 
 这些是组件自身的记录/状态字节，不含统一pool额外padding、跨rank复制和临时workspace。固定执行state不属于“每chunk新产生的token KV”，必须明确列出而非硬乘F。
 
-用于具体模型时，按实际 Attention 模块展开它的全部缓存组件，在同一行分别代入 Prefix Cache 和 Chunk 的参数并给出结果。已结算 Q 另列。只有在实现明确无该场景缓存时标注不适用。对共享或窗口组件按生命周期和物理页映射补充结果，再按 group 汇总池占用。
-
 | Attention结构／缓存组件 | Prefix cache占用 | Chunk执行占用，含全部未结算批次 |
 | --- | --- | --- |
 | MHA，等宽等精度K/V | `L*P*2*n_q*d*b`，实际n_kv=n_q | `L*F*2*n_q*d*b` |
