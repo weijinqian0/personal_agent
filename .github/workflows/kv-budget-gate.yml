@@ -1,0 +1,31 @@
+name: KV budget gate
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: KV arithmetic and release regressions
+        run: python -m unittest discover -s skills/kv-cache-budget/scripts -p 'test_*.py' -v
+      - name: Existing activation regressions
+        run: python -m unittest discover -s skills/activation-hbm-estimation/scripts -p 'test_*.py' -v
+      - name: Validate every committed deployment ledger
+        run: python skills/kv-cache-budget/scripts/check_saved_budgets.py --root budget-reports --output-dir .budget-gate-output
+      - name: Upload only reports from a successful gate run
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kv-budget-gate-reports
+          path: .budget-gate-output
+          if-no-files-found: error
