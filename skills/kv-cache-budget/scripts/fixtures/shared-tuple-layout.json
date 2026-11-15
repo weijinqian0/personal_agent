@@ -1,0 +1,30 @@
+{
+  "allocator_kind": "shared_tuple",
+  "layout_identity": "Supplied V4 Flash 950 C8 block32 DSpark3 snapshot; H128K F16K, no cross-request sharing",
+  "source": {
+    "source_trace_complete": true,
+    "evidence": "Conditional declared geometry from worked-example.md, not an independently verified deployment"
+  },
+  "request_mapping_complete": true,
+  "physical_owners_deduplicated": true,
+  "tuple_formula_scope_confirmed": true,
+  "tuple_slots": 25,
+  "page_buckets_bytes": [4224, 19456],
+  "declared_pool_bytes_per_block": 592000,
+  "groups": [
+    {"name": "c4", "blocks": 1024},
+    {"name": "c128", "blocks": 32},
+    {"name": "swa_two_groups", "blocks": 1034},
+    {"name": "c4_state", "blocks": 8197},
+    {"name": "c128_state", "blocks": 4129}
+  ],
+  "components": [
+    {"name": "c4_main", "pages": 21504, "page_bytes": 19456},
+    {"name": "index", "pages": 21504, "page_bytes": 4224},
+    {"name": "c128_main", "pages": 640, "page_bytes": 19456},
+    {"name": "swa_46_owners", "pages": 23782, "page_bytes": 19456},
+    {"name": "c4_main_state", "pages": 172137, "page_bytes": 19456},
+    {"name": "c4_index_state", "pages": 172137, "page_bytes": 4224},
+    {"name": "c128_state", "pages": 82580, "page_bytes": 19456}
+  ]
+}

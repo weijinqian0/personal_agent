@@ -39,6 +39,8 @@ vllm-ascend 的 V4 常见入口：
 
 ## 3. 分组、调度与回收
 
+组件页不能作为此步骤的终点。按[物理布局核对](physical-layout-validation.md)记录allocator、admission、capacity三条调用路径，确认最终生效的后端patch而非只读上游同名实现。逐项列出group、bucket/tuple槽、draft尾槽、空槽、stride与共享backing；单位成本必须由实际分配几何导出。MTP尾槽、alignment或组数在不同路径不一致时保留冲突，不能用capacity算术吻合证明实现一致。
+
 ```bash
 rg -n 'group_and_unify|num_layer_tuples|pool_bytes_per_block|max_memory_usage_bytes_from_groups' <cache-planner>
 rg -n 'max_concurrent_batches|max_in_flight_tokens' <vllm-config-directory>
@@ -78,5 +80,7 @@ rg -n 'registered_bytes|num_blocks|cache group|token capacity|Maximum concurrenc
 ```
 
 记录 `pool bytes/block`、有效请求持块、总池预分配三个口径。容量日志可能使用 max_model_len 和 max_in_flight_tokens 的 admission 成本折算，不能用 token capacity 直接反推每 token 长期 KV 大小。验证计算只证明日志算术一致；本地 commit 未匹配运行环境时保留该证据缺口。
+
+使用 `registered_bytes/num_blocks` 前确认分子覆盖同一池的唯一backing，排除重复alias描述符、独立通信buffer及部分注册范围；不同rank/池的数据不能拼成比值。无法确认范围时记“无法验证”，不是“通过”。即使比值吻合，仍分别检查请求分组消耗与admission/capacity的分母。
 
 计算可接纳请求数前，查实际池大小是否受显式bytes预算或块数override控制，核对它们相对内存利用率的优先级。对照weight/non-framework/activation/graph/workspace等profiling项，确认哪些已从可用池扣除；不重复扣减，也不把这些非KV内存混入KV有效字节。需要实际瞬时峰值时采集或索取逐rank的活跃/空闲/保留块与在途队列数据；仅有启动容量日志不能证明运行峰值。

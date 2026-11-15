@@ -1,5 +1,7 @@
 # 已知几何的预算复算
 
+部署总量的完成状态与allocator证据按[物理布局核对](physical-layout-validation.md)判定。`calculate_pool.py`仅复算输入声明的U和块数，不验证物理映射；可另用`audit_layout.py`核对声明几何与成本冲突，不能将脚本成功退出视为运行部署已验证。
+
 本例来自一次用户提供的 V4-Flash 部署分析：base block=32，日志给出每池 block 592000 B，含 DSpark 的分组为 C4、C128、两组 SWA、C4 state、C128 state。它是已给定几何的回归算例，不是任意 A5/V4 的默认布局；原文也未证明本地快照与远端完整 commit 一致。
 
 该样例主记录 608 B、索引 132 B，页大小分别 19456/4224 B，25 slots，故 `25*(19456+4224)=592000`。不能与其他版本的 640 B 主记录、22 slots、base block=128 混用。

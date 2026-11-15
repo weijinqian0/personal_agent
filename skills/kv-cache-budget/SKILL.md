@@ -15,6 +15,18 @@ description: 根据模型结构、推理后端源码和运行日志估算 KV Cac
 
 ## 容量计算交付门禁：先逐模块分账，再汇总
 
+### 部署总量必须完成物理布局映射
+
+先区分五种口径：有效载荷 `payload_bytes`、组件分页小计 `component_page_bytes`、请求物理池需求 `request_pool_need_bytes`、预分配池 `allocated_pool_bytes`、实测峰值 `observed_peak_bytes`。未知字段保留待确认/null，不互相替代；admission上界标为上界，不称实测写入量。
+
+对部署容量/逐卡预算，组件页之后必须追到实际生效的allocator：确认每个owner的group、backing/alias、分配单位、tuple/bucket、空槽及跨组件padding、独立block消耗和rank归属。按独立页、共享池、多池或固定ring的真实布局计费；不能强制所有模型套统一U，也不能同组各组件重复乘完整U。模型config和Spec页大小不足以证明池块成本。
+
+**未完成物理映射时，结论明确写“部署池需求尚未算完”**，仅交付明确命名的组件小计和未知项公式。不得以“条件逐卡预算”“另加少量padding”等标签将组件小计作为部署总量。用户明确只要有效量时按其范围交付。
+
+分配器、admission与capacity分别追踪并检查成本一致性，包含draft/MTP尾槽；有冲突时不能宣称对账完成。无日志但完整追通源码时可给“源码推导、未实测的条件池需求”；有日志时仅用同rank、同池、同分配范围的数据核对，字节/块数比值不能跨范围套用。
+
+优先完成[物理布局核对](references/physical-layout-validation.md)的证据表，再进行部署容量汇总。已有布局仅在相关模型/后端代码、硬件、dtype、block、并行、Hybrid、draft及connector布局身份相同时复用；只变长度/chunk且未改变布局时重算需求即可。可用 `scripts/audit_layout.py` 校验声明布局的算术和冲突；脚本不证明证据真实性或实际生效路径。
+
 本节适用于具体容量计算，无论单独调用还是由总预算skill编排。仅解释概念时不强制生成容量表；用户明确只要静态有效量时可按限定范围计算。否则，不得自行用“全部输入已处理完、F=0”的快照替代prefix/chunk执行预算。静态小计只能作为辅助对照，不能代替以下分账。
 
 1. **先形成组件清单**：从配置与实际构造列出每类Attention及其全部物理owner，包括主KV/latent、Indexer、folded副本、SWA、主/索引compressor state、递推状态和实际投机模块。按结构相同的层合并，但层数、owner与差异必须有依据；发现的每个组件都必须出现在分账表中。
