@@ -22,7 +22,7 @@ def fixture(root):
     def assertion():
         return dict(status="verified", reason="Synthetic test assertion", evidence_ids=["src"])
 
-    values = dict(length=32, prefix_alignment=4, block_size=2, tp=1, dp=1, pp=1, pcp=1, dcp=1,
+    values = dict(length=32, prefix_alignment=4, block_size=2,
                   max_num_batched_tokens=4, max_concurrent_batches=2, async_scheduling=True,
                   prefix_cache_enabled=True, speculative_method="synthetic", num_speculative_tokens=1,
                   kv_dtype="synthetic")
@@ -55,7 +55,7 @@ def fixture(root):
                               dict(name="draft", pages=1, page_bytes=64)])
     return dict(schema_version=1,
                 identity=dict(model="synthetic", model_revision="fixture-v1", hardware="synthetic",
-                              role="standalone", rank="0", stage="prefill", analyst="fixture-author",
+                              stage="prefill", analyst="fixture-author",
                               analysis_kind="conditional", backends={"toy": "fixture-v1"}, scope_id="snapshot-1"),
                 evidence=[dict(id="src", path="source.txt", sha256=hashlib.sha256(source).hexdigest(),
                                line_start=1, line_end=1, kind="source", backend="toy", revision="fixture-v1",
@@ -159,12 +159,17 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(sum(row["page_bytes"] for row in draft), 64)
         self.assertEqual(sum(row["payload_bytes"] for row in draft), 32)
 
-    def test_each_shared_batch_budget_is_checked_across_requests(self):
+    def test_multiple_requests_are_out_of_scope(self):
         request = copy.deepcopy(self.data["requests"][0])
         request["id"] = "r2"
         self.data["requests"].append(request)
         result = self.assert_blocked()
-        self.assertTrue(any("shared token budget exceeded" in error for error in result["errors"]))
+        self.assertTrue(any("exactly one request" in error for error in result["errors"]))
+
+    def test_single_request_batch_limit_is_checked(self):
+        self.data["requests"][0]["chunks"][0]["tokens"] = 5
+        result = self.assert_blocked()
+        self.assertTrue(any("single-request batch token limit exceeded" in e for e in result["errors"]))
 
     def test_unavailable_tokens_or_excess_batches_block(self):
         self.data["requests"][0]["chunks"][1]["tokens"] = 40

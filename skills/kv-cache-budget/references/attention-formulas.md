@@ -4,13 +4,13 @@
 
 先区分Attention结构与缓存组件：GQA/MLA可以同时带有SWA、Indexer或compressor state。模型包含几种实际存储就列几行，不把这些名称当互斥类别。
 
-以下按单请求、单rank的实际shape计算：P为命中prefix；Q为之后已安全结算历史；S=P+Q；C_i为各未结算批次，F=sum(C_i)，H=S+F。L为实际存储owner数，不自动等于模型层数；n_q为Query头数，n_kv为实际存储KV头数，d为维度，b为元素字节，s为一条记录的存储字节。层间参数不同则逐owner求和。
+以下按单请求、明确计算范围内的实际shape计算：P为命中prefix；Q为之后已安全结算历史；S=P+Q；C_i为各未结算批次，F=sum(C_i)，H=S+F。L为实际存储owner数，不自动等于模型层数；n_q为Query头数，n_kv为实际存储KV头数，d为维度，b为元素字节，s为一条记录的存储字节。层间参数不同则逐owner求和。
 
-R(x)表示前x个原始位置累计产生的缓存记录数。令Delta_R=R(S+F)-R(S)，对没有token压缩的组件R(x)=x。表内长历史组件prefix列计算本请求命中的P；其他请求/内容的prefix驻留另账。窗口与state的prefix列需要真实checkpoint集合，不能只由P确定。
+R(x)表示前x个原始位置累计产生的缓存记录数。令Delta_R=R(S+F)-R(S)，对没有token压缩的组件R(x)=x。表内长历史组件prefix列计算本请求命中的P。窗口与state的prefix列需要真实checkpoint集合，不能只由P确定。
 
 ## Prefix cache与chunk双列公式表
 
-这些是组件自身的记录/状态字节，不含统一pool额外padding、跨rank复制和临时workspace。固定执行state不属于“每chunk新产生的token KV”，必须明确列出而非硬乘F。
+这些是组件自身的记录/状态字节，不含统一pool额外padding和临时workspace。固定执行state不属于“每chunk新产生的token KV”，必须明确列出而非硬乘F。
 
 | Attention结构／缓存组件 | Prefix cache占用 | Chunk执行占用，含全部未结算批次 |
 | --- | --- | --- |
@@ -54,14 +54,3 @@ extra_prefix_pages = prefix_pages - active_pages
 量化记录字节按实际打包、分组尾部、scale、zero-point 和 padding 求和。`values*(bits/8 + scale_bytes/group_size)` 仅用于完整分组且无其他开销的简化情形。
 
 全局扫描类 Attention 的 decode 逻辑旧历史读可近似等于所访问历史的有效容量；稀疏 Attention 另列全局/候选索引扫描、选中主记录和局部窗口，不能以驻留容量替代访问量。物理 HBM 重读取决于 kernel，不能把逻辑唯一载荷称为实测带宽流量。
-
-## 容量与计算／访问量不要混淆
-
-对等宽全注意力，已有H_old个位置、本轮T_query个query、请求数B_req（各请求长度相同）：
-
-```text
-pairs = B_req*(T_query*H_old + T_query*(T_query+1)/2)
-QK+PV effective FLOPs = 4*n_q*d_h*pairs   # 再按层求和
-```
-
-GQA 共享 KV 不减少 Query 头数；完整矩形、有效因果和后端 padding FLOPs 不混计。FlashAttention 改变执行和中间分数物化，不自动改变持久 KV 结构。相同总 query token、不同请求上下文长度也可能有不同 Attention FLOPs。

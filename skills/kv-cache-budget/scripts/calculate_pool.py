@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute a declared additive KV pool budget; no framework dependencies."""
+"""Recompute a declared single-request KV pool budget; no framework dependencies."""
 
 import argparse
 import json
@@ -25,13 +25,13 @@ def calculate(config):
         raise ValueError("groups and requests must be nonempty")
     if len({g["name"] for g in groups}) != len(groups):
         raise ValueError("group names must be unique")
-    if len({r["id"] for r in requests}) != len(requests):
-        raise ValueError("request ids must be unique")
+    if len(requests) != 1:
+        raise ValueError("exactly one request is supported")
     in_flight = sum(integer(r["in_flight_tokens"], "in_flight_tokens") for r in requests)
-    if "global_in_flight_limit" in config:
-        limit = integer(config["global_in_flight_limit"], "global_in_flight_limit")
+    if "in_flight_limit" in config:
+        limit = integer(config["in_flight_limit"], "in_flight_limit")
         if in_flight > limit:
-            raise ValueError("sum of request in-flight tokens exceeds global limit")
+            raise ValueError("request in-flight tokens exceed limit")
     results = []
     for request in requests:
         length = integer(request["history_tokens"], "history_tokens")
@@ -64,7 +64,7 @@ def calculate(config):
                         "blocks": total_blocks, "bytes": total_bytes,
                         "GB": total_bytes / 10**9, "GiB": total_bytes / 2**30})
     total = sum(r["bytes"] for r in results)
-    return {"scope": "declared additive pool budget; no cross-request deduplication or runtime measurement",
+    return {"scope": "declared single-request pool budget; no runtime measurement",
             "requests": results, "total_in_flight_tokens": in_flight,
             "total_bytes": total, "total_GB": total / 10**9, "total_GiB": total / 2**30}
 

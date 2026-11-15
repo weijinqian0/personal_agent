@@ -12,7 +12,7 @@
 {
   "pool_bytes_per_block": 592000,
   "max_model_len": 1048576,
-  "global_in_flight_limit": 32768,
+  "in_flight_limit": 32768,
   "groups": [
     {"name":"c4", "kind":"full", "block_tokens":128},
     {"name":"c128", "kind":"full", "block_tokens":4096},
@@ -29,18 +29,12 @@
 
 `history_tokens` 是该预算快照采用的完整长度（含本轮预计写入），不是前缀长度加 chunk 后再重复相加。`in_flight_tokens` 是该请求的实际值或明确的场景上界。`max_model_len` 是窗口截断上界。窗口可选 `extra_retained_tokens`；固定分配组支持 `kind: fixed, blocks: N`。
 
-`multiplicity` 表示相同规则的独立分配组数量，不是层数；层/槽位和页填充已包含在 pool 单位成本内。仅适用于独立 group block 消耗可加的共享池：有跨请求共享物理页、prefix 检查点或 connector 持块时，需在外部去重/补充，脚本输出是未去重的条件预算。
+`multiplicity` 表示相同规则的独立分配组数量，不是层数；层/槽位和页填充已包含在 pool 单位成本内。仅适用于独立 group block 消耗可加的共享池：有 prefix 检查点或额外保留时，需在外部去重/补充，脚本输出是需补充保留项的条件预算。
 
-该脚本不输出逐组件prefix/chunk分账，也不推导checkpoint retention、PD延迟释放或layerwise物理buffer reuse。正文须另外按[分账与释放生命周期](prefix-chunk-lifecycle.md)列明这些项；只给本脚本的总数，不能称为包含全部prefix cache的节点驻留量。
+该脚本不输出逐组件prefix/chunk分账，也不推导checkpoint retention、额外延迟释放。正文须另外按[分账与释放生命周期](prefix-chunk-lifecycle.md)列明这些项；只给本脚本的总数，不能称为包含全部prefix cache的完整驻留量。
 
 | 请求长度 | 请求 F | 总块数 | bytes | GiB |
 | ---: | ---: | ---: | ---: | ---: |
 | 131072 | 8192 | 7760 | 4593920000 | 4.278421 |
 | 131072 | 16384 | 14416 | 8534272000 | 7.948160 |
 | 131072 | 32768 | 27728 | 16414976000 | 15.287638 |
-
-两请求各 F=8192 时合计 9187840000 B；各 F=16384 时合计 17068544000 B。两者分别使用公共 16K/32K 在途预算，不能把32K给每条请求后还称公共32K。
-
-容量日志回归：T=1048576，F=32768 时总块数35120；池43869块，则 `floor(43869/35120*1048576)=1309794`。这是 admission 折算，与长期 KV token capacity 不同。
-
-若单请求128K且实际连续命中90%，剩余约13108 token。它不能仅因配置支持32K在途就拥有32K新增prefill；本例论文/日志的本地 prefix caching 关闭，外部池命中仍须单独取证。8K/16K调度预算共享，多请求同时驻留也不会自动使算力吞吐按并发线性增长。
