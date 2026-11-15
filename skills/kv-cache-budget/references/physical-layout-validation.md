@@ -37,6 +37,10 @@
 
 布局身份包含会改变布局的模型、后端代码、硬件、dtype/scale、block、Hybrid、draft及缓存重布局。相关身份变化重新核对；仅长度/chunk变化且布局不变时复用几何并重算需求。使用实际 owner shape，不推导多卡归属。
 
+## 分组重放
+
+从固定版本的实际分组函数生成最终 group/bucket 清单，保存调用输入、输出和源码位置；包含 approximate GCD 等自动拆组，不能用最大原始层数代替最终槽数。共享 tuple 布局向校验器提供 `grouping_evidence`、每组按 `page_buckets_bytes` 顺序排列的 `owners_per_bucket`（空 bucket 填0）及 `trailing_slots`。校验器按 `max(各组各bucket的owner数)+trailing_slots` 复算槽数；不适用此公式的分配器须另建实际映射。
+
 ## 算术核对器
 
 `python3 scripts/audit_layout.py --input layout.json` 仅验证声明布局，不能自动读取模型、检查源码真实性、识别alias或测量峰值。输入示例见 `scripts/fixtures/shared-tuple-layout.json`。

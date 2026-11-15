@@ -40,8 +40,31 @@ class LayoutTests(unittest.TestCase):
         self.assertIsNone(audit(config)["request_pool_need_bytes"])
         config = fixture()
         config["tuple_slots"] = 26
+        config["trailing_slots"] = 3
         config.pop("declared_pool_bytes_per_block")
         self.assertEqual(audit(config)["request_pool_need_bytes"], 14416 * 26 * 23680)
+
+    def test_missing_group_geometry_blocks_total(self):
+        for field in ("grouping_evidence", "trailing_slots"):
+            config = fixture()
+            del config[field]
+            self.assertIsNone(audit(config)["request_pool_need_bytes"])
+        config = fixture()
+        del config["groups"][0]["owners_per_bucket"]
+        self.assertIsNone(audit(config)["request_pool_need_bytes"])
+
+    def test_final_group_geometry_overrides_original_layer_count(self):
+        config = fixture()
+        config["trailing_slots"] = 0
+        config["groups"] = [dict(name=f"g{i}", blocks=3000, owners_per_bucket=counts)
+                            for i, counts in enumerate(
+                                [[21, 21], [0, 20], [0, 22], [0, 21], [21, 21], [0, 20]])]
+        config.pop("declared_pool_bytes_per_block")
+        config["tuple_slots"] = 21
+        self.assertIsNone(audit(config)["request_pool_need_bytes"])
+        config["tuple_slots"] = 22
+        self.assertEqual(audit(config)["allocator_unit_bytes"], 22 * (4224 + 19456))
+        self.assertEqual(audit(config)["request_pool_need_bytes"], 18000 * 22 * (4224 + 19456))
 
     def test_log_scope_and_cost(self):
         config = fixture()

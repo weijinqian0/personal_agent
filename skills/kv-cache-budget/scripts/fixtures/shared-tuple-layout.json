@@ -9,14 +9,16 @@
   "physical_owners_deduplicated": true,
   "tuple_formula_scope_confirmed": true,
   "tuple_slots": 25,
+  "trailing_slots": 2,
+  "grouping_evidence": "Synthetic final geometry: C4/state 21, C128/state 20, two 23-owner SWA groups, two trailing slots; not a backend replay.",
   "page_buckets_bytes": [4224, 19456],
   "declared_pool_bytes_per_block": 592000,
   "groups": [
-    {"name": "c4", "blocks": 1024},
-    {"name": "c128", "blocks": 32},
-    {"name": "swa_two_groups", "blocks": 1034},
-    {"name": "c4_state", "blocks": 8197},
-    {"name": "c128_state", "blocks": 4129}
+    {"name": "c4", "blocks": 1024, "owners_per_bucket": [21, 21]},
+    {"name": "c128", "blocks": 32, "owners_per_bucket": [0, 20]},
+    {"name": "swa_two_groups", "blocks": 1034, "owners_per_bucket": [0, 23]},
+    {"name": "c4_state", "blocks": 8197, "owners_per_bucket": [21, 21]},
+    {"name": "c128_state", "blocks": 4129, "owners_per_bucket": [0, 20]}
   ],
   "components": [
     {"name": "c4_main", "pages": 21504, "page_bytes": 19456},

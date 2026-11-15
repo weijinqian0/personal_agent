@@ -46,6 +46,23 @@ def audit(config):
         groups = config["groups"]
         if not groups or len({g["name"] for g in groups}) != len(groups):
             raise ValueError("groups must be nonempty with unique names")
+        # Recompute slots from final groups, not original model layer counts.
+        geometry = []
+        if not has_evidence(config.get("grouping_evidence")):
+            missing.append("backend grouping replay evidence (inputs, outputs and pinned source)")
+        for group in groups:
+            counts = group.get("owners_per_bucket")
+            if not isinstance(counts, list) or len(counts) != len(buckets):
+                missing.append(f"group {group['name']}: final owners_per_bucket")
+                continue
+            geometry.extend(integer(n, "bucket owner count") for n in counts)
+        trailing = config.get("trailing_slots")
+        if trailing is None:
+            missing.append("explicit trailing_slots (zero when absent)")
+        elif geometry and len(geometry) == len(groups) * len(buckets):
+            derived_slots = max(geometry) + integer(trailing, "trailing_slots")
+            if derived_slots != config["tuple_slots"]:
+                conflicts.append("tuple_slots differs from final group/bucket geometry plus trailing slots")
         blocks = sum(integer(g["blocks"], "group blocks") for g in groups)
         candidate = blocks * unit
         declared = config.get("declared_pool_bytes_per_block")
