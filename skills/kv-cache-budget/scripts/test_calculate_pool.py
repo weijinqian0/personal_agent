@@ -9,7 +9,7 @@ from calculate_pool import calculate
 def scenario(flight=8192, length=131072):
     return {
         "pool_bytes_per_block": 592000, "max_model_len": 1048576,
-        "global_in_flight_limit": 32768,
+        "in_flight_limit": 32768,
         "groups": [
             {"name": "c4", "kind": "full", "block_tokens": 128},
             {"name": "c128", "kind": "full", "block_tokens": 4096},
@@ -30,14 +30,12 @@ class BudgetTests(unittest.TestCase):
                 self.assertEqual(result["requests"][0]["blocks"], blocks)
                 self.assertEqual(result["total_bytes"], blocks * 592000)
 
-    def test_two_requests_share_global_budget(self):
+    def test_multiple_requests_are_out_of_scope(self):
         config = scenario(16384)
         other = copy.deepcopy(config["requests"][0])
         other["id"] = "B"
         config["requests"].append(other)
-        self.assertEqual(calculate(config)["total_bytes"], 17068544000)
-        config["requests"][1]["in_flight_tokens"] += 1
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "exactly one request"):
             calculate(config)
 
     def test_capacity_log_integer_rounding(self):
@@ -72,7 +70,7 @@ class BudgetTests(unittest.TestCase):
         # Declared geometry only: no runtime or automatic model-layout inference.
         config = {
             "pool_bytes_per_block": 462848, "max_model_len": 1048576,
-            "global_in_flight_limit": 16384,
+            "in_flight_limit": 16384,
             "groups": [
                 {"name": "long", "kind": "full", "block_tokens": 128},
                 {"name": "ring", "kind": "fixed", "blocks": 1},
@@ -99,38 +97,26 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(same_groups["ring"], after["ring"])
         self.assertEqual(async_result["bytes"] - same_history["bytes"], 640 * 462848)
 
-    def test_settled_baseline_plus_global_inflight_delta(self):
-        config = {
-            "pool_bytes_per_block": 1000, "max_model_len": 4096,
-            "global_in_flight_limit": 256,
-            "groups": [
-                {"name": "long", "kind": "full", "block_tokens": 128},
-                {"name": "window", "kind": "window", "block_tokens": 128,
-                 "window": 128, "boundary_slack_blocks": 1},
-                {"name": "ring", "kind": "fixed", "blocks": 1}],
-            "requests": [
-                {"id": "A", "history_tokens": 129, "in_flight_tokens": 0},
-                {"id": "B", "history_tokens": 256, "in_flight_tokens": 0}]}
-        baseline = calculate(config)
-        baseline_groups = [{g["group"]: g["blocks"] for g in r["groups"]}
-                           for r in baseline["requests"]]
-        # A's 127 positions fit its already allocated last long-history page;
-        # B needs two new pages. Per-column ceil(F/b) would double-count A's page.
-        config["requests"][0].update(history_tokens=256, in_flight_tokens=127)
-        config["requests"][1].update(history_tokens=385, in_flight_tokens=129)
-        active = calculate(config)
-        active_groups = [{g["group"]: g["blocks"] for g in r["groups"]}
-                         for r in active["requests"]]
-        self.assertEqual(active["total_in_flight_tokens"], 256)
-        self.assertEqual([a["long"] - b["long"]
-                          for a, b in zip(active_groups, baseline_groups)], [0, 2])
-        self.assertEqual([a["ring"] - b["ring"]
-                          for a, b in zip(active_groups, baseline_groups)], [0, 0])
-        increments = [sum(a[k] - b[k] for k in a)
-                      for a, b in zip(active_groups, baseline_groups)]
-        self.assertEqual(increments, [1, 3])
-        self.assertEqual(baseline["total_bytes"] + sum(increments) * 1000,
-                         active["total_bytes"])
+    def test_single_request_boundary_and_fixed_state_delta(self):
+        for settled, flight, expected_long, expected_total in [(129, 127, 0, 1), (256, 129, 2, 3)]:
+            with self.subTest(settled=settled):
+                config = {
+                    "pool_bytes_per_block": 1000, "max_model_len": 4096,
+                    "in_flight_limit": 256,
+                    "groups": [
+                        {"name": "long", "kind": "full", "block_tokens": 128},
+                        {"name": "window", "kind": "window", "block_tokens": 128,
+                         "window": 128, "boundary_slack_blocks": 1},
+                        {"name": "ring", "kind": "fixed", "blocks": 1}],
+                    "requests": [{"id": "A", "history_tokens": settled, "in_flight_tokens": 0}]}
+                baseline = calculate(config)
+                config["requests"][0].update(history_tokens=settled + flight, in_flight_tokens=flight)
+                active = calculate(config)
+                before = {g["group"]: g["blocks"] for g in baseline["requests"][0]["groups"]}
+                after = {g["group"]: g["blocks"] for g in active["requests"][0]["groups"]}
+                self.assertEqual(after["long"] - before["long"], expected_long)
+                self.assertEqual(after["ring"] - before["ring"], 0)
+                self.assertEqual(active["total_bytes"] - baseline["total_bytes"], expected_total * 1000)
 
 
 if __name__ == "__main__":

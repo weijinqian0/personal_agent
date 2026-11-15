@@ -13,13 +13,13 @@ from audit_layout import audit
 
 
 PARAMETERS = {
-    "length", "prefix_alignment", "block_size", "tp", "dp", "pp", "pcp", "dcp",
+    "length", "prefix_alignment", "block_size",
     "max_num_batched_tokens", "max_concurrent_batches", "async_scheduling",
     "prefix_cache_enabled", "speculative_method", "num_speculative_tokens", "kv_dtype",
 }
 CHECKS = {
     "backend_compatibility", "active_path", "inventory", "lifecycle", "allocator",
-    "admission", "capacity", "rank_ownership", "prefix_retention", "speculation", "async",
+    "admission", "capacity", "prefix_retention", "speculation", "async",
 }
 LIFECYCLE = {"write", "restore", "retain", "release", "deduplicate"}
 RETENTIONS = {"full_history", "window", "fixed_state"}
@@ -75,7 +75,7 @@ def check_ledger(ledger, root):
     if type(ledger.get("schema_version")) is not int or ledger.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     identity = mapping(ledger.get("identity", {}), "identity")
-    for key in ("model", "model_revision", "hardware", "role", "rank", "stage", "analyst"):
+    for key in ("model", "model_revision", "hardware", "stage", "analyst"):
         if not isinstance(identity.get(key), str) or not identity[key].strip():
             errors.append(f"identity.{key} is missing")
     analysis_kind = identity.get("analysis_kind")
@@ -174,8 +174,8 @@ def check_ledger(ledger, root):
             nonempty(parameters[name], name)
 
     requests = indexed(ledger.get("requests", []), "requests")
-    if not requests:
-        errors.append("requests: at least one actual or conditional snapshot is required")
+    if len(requests) != 1:
+        errors.append("requests: exactly one request snapshot is supported")
     snapshots, batches = {}, {}
     for key, request in requests.items():
         p = integer(request.get("prefix_tokens"), "prefix_tokens")
@@ -203,7 +203,7 @@ def check_ledger(ledger, root):
     if "max_num_batched_tokens" in parameters:
         for batch, count in batches.items():
             if count > parameters["max_num_batched_tokens"]:
-                errors.append(f"batch {batch}: shared token budget exceeded")
+                errors.append(f"batch {batch}: single-request batch token limit exceeded")
     if "max_concurrent_batches" in parameters and len(batches) > parameters["max_concurrent_batches"]:
         errors.append("number of in-flight batches exceeds resolved concurrency")
 

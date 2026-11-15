@@ -15,7 +15,7 @@
 用户要求估算模型完整 HBM/显存占用、判断能否装下、计算剩余 KV 空间或并发容量时，使用 [model-hbm-budget](skills/model-hbm-budget/SKILL.md) 作为总入口，读取并应用以下三个 skill：
 
 1. [weight-hbm-estimation](skills/weight-hbm-estimation/SKILL.md)：加载后的权重与权重副本。
-2. [kv-cache-budget](skills/kv-cache-budget/SKILL.md)：缓存组件、请求持块与预分配池。
+2. [kv-cache-budget](skills/kv-cache-budget/SKILL.md)：单请求缓存组件、prefix/chunk/state、请求持块与预分配池；不承担多请求、多卡切分。
 3. [activation-hbm-estimation](skills/activation-hbm-estimation/SKILL.md)：激活、workspace、通信、图池和运行时。
 
 最终答复先给配置、模块计算与异步调度分账，最后输出总体汇总表，按 KVCache、权重、激活/workspace、图模式/图池、HCCL buffer、其他持久缓冲/通信池、运行时与分配器额外量分别列行，汇总表中的数值由模块计算与逐阶段合账导出。采用[报告模板](skills/model-hbm-budget/references/report-template.md)，表中明确已知小计、条件总数或完整峰值；未知项不省略。不要把三个专项回答直接拼接，或将不同阶段/不同 rank 的分项最大值直接相加。

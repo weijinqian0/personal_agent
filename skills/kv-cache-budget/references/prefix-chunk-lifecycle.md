@@ -1,168 +1,42 @@
-# Prefix、chunk与释放生命周期分账
+# 单请求 prefix / chunk / 状态生命周期
 
-用于具体容量分析，不是要求任意模型采用统一缓存实现。先从模型config、构造/spec、allocator、scheduler和connector取证，再按下列顺序计算；保留来源、公式、代入、整数bytes及单位换算。
+## 快照与归因
 
-## 1. 定义输入与区间
+`P` 为有效命中前缀，`Q` 为此后安全结算历史，`S=P+Q`；有序未结算 chunk 为 `C_i`，`F=sum(C_i)`，`H=S+F`。已结算与在途位置必须分列；L-P 不等于某个 chunk。
 
-- P：真实命中且对齐后的连续前缀长度；全服务平均命中率不能直接代入。
-- Q：命中后、此前chunk已经安全结算的历史；尚未结算的上一批不得计入Q。
-- C：当前新增chunk；多个未结算批次分别列出位置区间，不重复计数。
-- F：该请求已调度但未安全结算的位置数，不一定等于C，也不一定达到配置上限。
-- W、extra retention、block tokens、compression ratio、dtype/scale、实际owner、缓存可否prefix复用均逐组件确认。
+长历史组件按累计记录函数 R(x) 差分。普通 KV 为 R(x)=x；压缩边界依真实实现，常见为 floor(x/r)。prefix、Q 和各 C_i 的记录和应为 R(H)，页数则按对应位置的物理页并集计算，不能逐列 ceil 后相加。
 
-先标明本地命中还是外部池恢复；外部命中可能还需分配本地页，checkpoint可能在不同存储介质。按rank与介质分账。
+## 每个 state 先查五件事
 
-## 2. 枚举每类Attention块和存储owner
+| 生命周期 | 要查的实际行为 |
+|---|---|
+| 写入 | 哪个 kernel 在哪些输入位置写入，是否产生压缩记录或更新固定槽 |
+| 恢复 | prefix 命中时恢复哪些 checkpoint，复用、复制还是重新计算 |
+| 保留 | 尾窗、checkpoint、推测回滚版本分别留多久 |
+| 释放 | 安全结算、窗口滑过、回滚完成时何时回收；是否有在途保护 |
+| 去重 | 恢复态、执行态、checkpoint 是否指向相同 backing |
 
-从config到构造路径列出各层的Attention组合及共享图，再列实际持久缓存：主K/V或MLA latent、Index K、folded副本、SWA、主/索引compressor、递推/卷积state、MTP/DSpark。每一类均进入下表；未知不能略过，未启用/不可prefix复用需注明依据。
+名字或 tensor shape 不能代替生命周期证据。固定 state 已分配时，新 chunk 可能没有新增字节，但原有容量仍需计入。
 
-| 组件/owner | prefix有效记录与页 | 先前chunk保留Q | 当前chunk新增/多批在途 | 固定请求状态 | 物理重合与来源 |
-| --- | --- | --- | --- | --- | --- |
-| 每种组件一行 | 区分命中所需与整个池保留 | 不归入原始P | 列出C与F的区别 | 不随chunk重复分配 | 实际shape/spec/retention证据 |
+## 窗口与 checkpoint
 
-## 3. 先算有效记录，再转换物理页
-
-对保留完整历史的组件，令R(x)为源码在前x个原始位置产出的累计缓存记录数：
+SWA 和窗口 compressor state 分列：命中边界所需尾窗、实际保留的 prefix checkpoint、活跃历史尾窗、每批在途新增位置。窗口 W 既不是整个 prefix 容量，也不证明只存一个窗口。
 
 ```text
-prefix_records = R(P)
-previous_records = R(P+Q) - R(P)
-chunk_records = R(P+Q+C) - R(P+Q)
-bytes = records * actual_record_bytes * actual_owner_count
+resident_pages = prefix_checkpoint_pages ∪ active_pages ∪ extra_retained_pages
+extra_prefix_pages = prefix_checkpoint_pages - active_pages
 ```
 
-全历史普通KV通常R(x)=x；压缩KV按真实产出规则，不能无条件假设floor/ceil。MLA不额外乘K/V的2；压缩记录覆盖原始token单位与kernel存储行数分别列出。泛化公式只能用于实现符合的分支。
+按物理页身份去重。未知 checkpoint 保留策略时写集合公式与缺项，不把未知当零。主 KV 与 Index state 各用自己的 dtype、窗口和页规则。
 
-分页用实际起止位置映射。共享边界页不能对prefix和chunk分别ceil再相加；若copy-on-write产生独立页，按真实副本计费。累计逻辑页差可用于归因，但不能替代有拷贝/alias时的物理页集合。
+## 异步增量
 
-## 4. SWA至少分清三种集合
-
-1. **命中边界所需尾窗**：按`find_longest_cache_hit`等实际规则查需要多少连续页；它不是整个prefix长度。
-2. **prefix池全部保留窗口页**：从checkpoint边界、retention interval、分叉点、replay位置、实际产生/保存和淘汰情况得到唯一页集合S_prefix。多个边界尾窗可能重合。
-3. **活跃执行页**：历史末尾保留窗口与未结算chunk的页集合S_active；已命中的尾窗可能同时在S_prefix中。
+固定安全结算位置 S，分别计算基线和含所有 C_i 的快照：
 
 ```text
-S_swa_resident = S_prefix ∪ S_active
-S_extra_prefix = S_prefix - S_active
+增量 = bytes(实际保留页集合，含全部在途位置) - bytes(安全结算基线页集合)
 ```
 
-在支持相应规则的版本中，活跃窗口admission上界为：
+覆盖所有会写入的组件，不能只扩大 SWA。固定槽仅在真实增加执行版本时增加；压缩记录逐批做累计差分。不默认在途批次数或 chunk 长度，配置上限与实际写入量分开说明。
 
-```text
-n_active = ceil(min(max_model_len, W-1+extra+F)/block_tokens) + slack
-```
-
-该slack用于执行窗口跨页余量，不能作为命中checkpoint额外页直接套用。实际页集合未获得时可给上界，但不得声称所有层/组件上界同时实测达到。
-
-若为归因把`n_active(F)-n_active(0)`记为chunk增量、`n_active(0)`记为历史基线，须明确是预算分摊，不是prefix cache确切页身份。不能据此声称整个prefix池只占这个基线。
-
-读取运行版本的retention配置默认值及覆盖：它可能是仅语义checkpoint、周期checkpoint或密集保留，不能跨版本固定含义。即使仅语义checkpoint，也不能假设全池只有一个checkpoint。未知时给`M_active + cost(S_extra_prefix)`，不把未知项填0，也不把结果称为完整节点驻留总量。
-
-## 5. state分别判定
-
-- 固定ring/递推state：按实际tensor槽位，一请求一份；若不可prefix复用，prefix列标“不适用”，不在两批chunk中复制两份。
-- 窗口式compressor state：按自己的逻辑block、窗口与F计算，不能套主KV压缩比，也不能沿用别的模型固定ring。
-- prefix state checkpoint或恢复副本：仅在实现确实保存/恢复时计入，核查与执行state是否同一存储。
-- FP32 state、BF16 scratch、Engram历史等与量化主KV精度分别确认；非KV持久buffer另列，说明是否已经从可用KV池预算扣除。
-
-## 6. 异步默认与实际在途
-
-从最终解析配置和源码分支确认async；未显式传参不表示关闭，兼容性检查也可能覆盖默认值。实际异步开启时使用异步作主结论。
-
-默认多请求持续供给；缺少实际并发数时保留N，不退回仅给单请求主结论，也不以“多请求”假定任意数量请求均已持块或batch必满。单请求剩余输入不足一个chunk时，可以由其他请求补足公共batch，但须列出各请求/批次位置分配，验证剩余输入之和足够。命中粒度来自具体模型：不能将带压缩group模型的LCM对齐规则照搬到普通MLA/Indexer。
-
-```text
-F_global_max = resolved_max_concurrent_batches * effective_batch_token_budget
-sum(F_request) <= F_global_max
-```
-
-PP、runner和推测模式会改变批次数/位置数。对纯prefill的单请求，未结算输入不能超过该阶段尚未安全完成的输入位置数；P命中90%不代表能同时提供两个完整8K chunk。若有生成/推测位置，单独列入，不直接用剩余输入限制全部F。
-
-D按各未结算step实际喂入token计F；无推测时可能每步1 token，有推测时不能照抄。不能把公共8K/16K预算作为每条decode请求的实际值。异步不把长期KV、prefix或固定ring整体乘并发批数；每个位置只计算一次。
-
-### 所有Attention组件都列出多批新增位置
-
-令S=P+Q为安全结算历史，C_1...C_k为不同未结算批次的位置数。对每个会产生新token缓存的组件，逐批累计：
-
-```text
-H = S + sum(C_i)
-batch_i_records = R(S + sum(C_1...C_i)) - R(S + sum(C_1...C_(i-1)))
-all_inflight_records = R(H) - R(S)
-```
-
-适用于其实际产出规则已确认的普通KV、紧凑latent、压缩主KV、Index K和folded副本；SWA在逐批位置账之外再施加窗口与释放规则。固定state按生命周期核算，不因增加批次复制。两批等长8K时，线性且对齐的新增token KV通常约翻倍，不代表完整请求KV翻倍；非对齐压缩产出、分页和copy-on-write按实际规则，不硬乘2。
-
-分别展示“prefix P｜已结算Q｜上一未结算批｜当前批｜固定state”，不能只给一个16K F和合并历史，从而隐藏第二批主KV/索引是否已计入。完整H的长期缓存已经覆盖这些位置，再追加一份chunk会重复计费。
-
-比较同步与异步有两个不同基准：固定S时H随批数增长，长期KV和SWA新增预算都会增长；固定H时长期记录总数不变，只是Q与在途位置重新分摊，不能据此声称异步只影响SWA。序列末尾不足两批时，用真实剩余位置；更保守的完整H+满额F包络须单独标注，不当作固定chunk轨迹的实测峰值。
-
-### 最后加入异步：基线与新增页差分
-
-容量报告将异步在途作为最后统一加入的计算项，然后再列额外保留。顺序如下：
-
-| 分账项 | 口径 |
-| --- | --- |
-| 命中prefix | 当前请求实际复用的唯一页，不假定命中页不占本地空间 |
-| 已结算Q | 命中后已完成且仍需保留的长期记录，不归并成最初prefix |
-| 历史窗口/固定state | 截止各请求S=P+Q，扣除与prefix重合页；固定state按真实执行版本数 |
-| 全部异步在途增量 | 当前批及此前未结算批产生/保留的新增页，所有组件一起汇总 |
-| 额外保留 | 上述集合之外的prefix、connector/fence页与真实副本 |
-
-```text
-M_total = M_settled_baseline + Delta_M_inflight + M_extra
-```
-
-基线不是“完整请求长度的KV”。对无CoW/共享变化的独立全历史组，新增物理页为`ceil((S+F)/b)-ceil(S/b)`，而非`ceil(F/b)`；记录有效量仍用`R(S+F)-R(S)`。窗口组按同一预算规则取`n(F)-n(0)`归因，不能先计完整chunk再把两批F整体重复加入。固定ring/state的在途增量可能为0；只有实际多版本/副本才增加，固定槽容量仍在基线中。
-
-跨请求先对基线页取并集，再对完整活跃页取并集；新增项是后者中尚未计入的物理页/版本。压缩边界、共享页、CoW、回收或布局变化使基线并非完整活跃集合子集时，显式对账新增页和释放/替换页，不能机械相加各组件独立ceil。统一pool按去重后的group block计U，不给同一组每个组件重复计U。
-
-“异步在途增量”包含当前批，不等于“比同步多出的开销”。若要比较异步额外开销，固定相同已结算S，另算`M(S,F_async)-M(S,F_sync)`，不要把所有在途都称为异步相对同步的额外负担。已经按H覆盖全部位置的长期KV不再加Delta_M；只做P/Q/各批归因对账。该输出规则不改变计算器history_tokens包含F的输入定义。
-
-## 7. PD释放：三种不同生命周期
-
-| 机制 | 核查路径 | 计算规则 |
-| --- | --- | --- |
-| connector `delay_free_blocks` | `request_finished[_all_groups]`返回、scheduler合并、finished_sending/recving完成回报 | 完成但未释放的原页继续持有；通常是延长寿命，不是新副本 |
-| 在途计算fence `defer_block_free` | consumer角色、并发批次数、last_sched/processed seq、deferred_frees | 即使connector返回False，也可能需等待旧写入安全结束 |
-| prefix缓存驻留 | ref_cnt、hash、free queue与淘汰 | 请求引用释放后可能仍保留可淘汰内容，不等于不可用块 |
-
-确认某layerwise push实现返回False时，其“完成后等待D拉取”持块项为0；不能把这一事实推广到所有layerwise connector、异常路径、MultiConnector的其他成员或计算fence。不能额外虚构一整请求的延迟KV副本。
-
-layerwise传输与**物理buffer reuse**不是同一开关。若allocator把多层改为共享scratch，重新从最终布局计算slots、groups和pool成本；不可沿用全层独立缓存预算。传输缓冲/暂存副本按实际shape和生命周期另列。P/D双端只在时间重叠时相加，跨节点不能按逻辑相同prefix去重HBM副本。
-
-## 8. 最终物理去重与结果名称
-
-从组件记录账映射到最终group/tuple；同一full group里的主KV、索引和folded资源不能各乘一次完整pool单位成本。别名view只计一次，padding也只计一次。使用页身份应至少区分rank、pool与分配代次，不能跨节点或跨时刻仅按block编号去重。
-
-已证明统一pool成本U时，可用以下口径；分桶成本不同则按真实分配分别加权：
-
-```text
-N_active：活跃请求页，跨请求共享页去重
-N_delayed：完成后仍被connector/fence持有且尚未计入的页
-N_extra_prefix：不在前两项中、仍有有效缓存内容的prefix页
-M_held = U * |B_active ∪ B_delayed|
-M_resident = U * |B_active ∪ B_delayed ∪ B_prefix|
-```
-
-N_extra_prefix可能可淘汰并可重新分配，不应全从admission可用量中扣除。M_resident为有效内容所占页的等价容量，不是启动预分配总量，也不是设备API的已分配内存；两者须另外说明。新请求边际分配按已有可复用页扣重，再考虑copy-on-write及恢复副本。
-
-交付内容包括条件/版本、Attention组成与owner、逐组件prefix/chunk表、逐批F及checkpoint保留、物理页与padding、释放生命周期和日志对账。最终汇总按第6节顺序先列多请求已结算基线，再加公共在途增量和额外保留，分别命名活跃持块、驻留量及边际量。缺prefix保留页时，明确已给数字只涵盖哪一项。
-
-### block变化时解释的是哪种成本
-
-先区分有效内容、未填充页、统一pool容量等价成本和启动预分配量。对同一历史，缩小block通常不增加有效记录数；但若共享slot尺寸由固定ring大页主导，block变小、页数增加，而slot stride未同比缩小，pool成本可能上升。需从实际`max(component_pages)`、group映射和pool divisor推导，不把这种布局特性说成“小block天然更耗KV”，也不能解释为ring有效state被复制到每个长期页。
-
-有统一U时展示`ceil(H/block)*U`及有效内容作对照；多组件本来独立分配时不能强套此式。固定可用内存预分配池下，更高的请求块成本通常体现为可容纳token/并发下降，不是服务启动后设备已分配显存自动随请求扩大。layerwise buffer reuse或独立state池改变布局后重新计算，不延用旧放大比例。
-
-## 有边界条件的检查算例（不是模型默认值）
-
-某已知几何：W=128、block=128、40个独立SWA层、10个group、每记录544B、统一U=462848B，无推测额外尾部。若命中逻辑要求最近W−1个历史token，在对齐边界每组只需1块：
-
-```text
-单边界尾窗有效页 = 40*128*544 = 2785280 B
-对应pool成本 = 10*1*462848 = 4628480 B
-```
-
-活跃admission在F=0时可能给每组2块，不能把该余量当成checkpoint精确成本。若多个checkpoint的尾窗页重合，不能直接乘checkpoint数；即使这个几何成立，也不能断言整个prefix池仅驻留上述一组尾窗。
-
-另一个调度检查：输入131072、90%连续命中、按128对齐时P=117888，剩余13184=8192+4992。假设PP=1、实际两批在途、公共batch预算8192，单请求纯prefill的F包络为13184而非16384。其真实是否达到，仍需调度日志验证。上述数值只验证方法，不替代任意模型/版本的源码布局。
+最终按“prefix → Q → 活跃窗口/固定 state → 在途新增页 → 未计入的额外保留”汇总。若页已在固定缓存池内，增量只是消耗池内空闲空间，不再加到 allocated_pool_bytes。
