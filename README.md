@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | DeepSeek V4 Flash | A5、TP4×DP4（条件 EP16）；异步 KV ×2 预算，128K / 512K / 1M / 2M 长度对照。 | [DeepSeek V4 Flash HBM 报告](models/deepseek-v4-hbm-report.html) |
 | DeepSeek V4.1 Flash | 128K 输入、目标连续 prefix 命中 90%、8192-token chunk、Engram 主机内存 offload；权重、KV、激活及运行时分账。 | [DeepSeek V4.1 Flash HBM 报告](models/deepseek-v4.1-hbm-report.html) |
+| GLM-5.3 | 沿用 DeepSeek V4 的 A5、TP4×DP4（条件 EP16）、8192-token chunk 与 KV ×2 预算；78 层 MLA/DSA、1 层 MTP，A5 量化权重采用条件分账。 | [GLM-5.3 HBM 报告](models/glm-5.3-hbm-report.html) |
 
 HTML 文件包含内置样式与图表，可下载后用浏览器离线打开。报告属于静态条件分析，完整物理需求与设备峰值的缺项保留在各报告中；2M 对照仅为字节几何外推，不代表模型已支持 2M 上下文。
 
