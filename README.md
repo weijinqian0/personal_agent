@@ -2,6 +2,15 @@
 
 个人 Agent Skills。
 
+## 模型 HBM 报告
+
+| 模型 | 场景与范围 | HTML 报告 |
+| --- | --- | --- |
+| DeepSeek V4 Flash | A5、TP4×DP4（条件 EP16）；异步 KV ×2 预算，128K / 512K / 1M / 2M 长度对照。 | [DeepSeek V4 Flash HBM 报告](models/deepseek-v4-hbm-report.html) |
+| DeepSeek V4.1 Flash | 128K 输入、目标连续 prefix 命中 90%、8192-token chunk、Engram 主机内存 offload；权重、KV、激活及运行时分账。 | [DeepSeek V4.1 Flash HBM 报告](models/deepseek-v4.1-hbm-report.html) |
+
+HTML 文件包含内置样式与图表，可下载后用浏览器离线打开。报告属于静态条件分析，完整物理需求与设备峰值的缺项保留在各报告中；2M 对照仅为字节几何外推，不代表模型已支持 2M 上下文。
+
 ## KV Cache 报告门禁
 
 具体KV部署报告增加[证据账与受控交付入口](skills/kv-cache-budget/references/release-gate.md)：校验源码文件指纹与版本、全部Attention组件的状态生命周期和prefix/Q/各chunk分账、物理布局与allocator/admission/capacity成本，并绑定独立复核记录。未通过时退出非零，报告部署需求为null；失败重跑覆盖旧成功报告。原有算术脚本继续保留，不再被视作完成证据核查。
