@@ -81,11 +81,12 @@
       <article>
         <div>
           <h2><a href="models/glm-5.3-hbm-report.html">GLM-5.3</a></h2>
-          <p>沿用 DeepSeek V4 的 A5、TP4×DP4、8192-token chunk 与 KV ×2 预算，按完整 GLM-5.3 的 MLA/DSA 与 MTP 结构重新计算。</p>
-          <p class="detail">78 层 Target、1 层 MTP；A5 量化权重采用条件矩阵分账。</p>
+          <p>128K、256K、512K 与 1M 的显存分项和五种长度扇形图，另列 2M 容量外推；沿用 A5、TP4×DP4、8192-token chunk 与 KV ×2 规划。</p>
+          <p class="detail">78 层 Target、21 个完整 Indexer、1 层 MTP；权重、KV 与 TopK 条件项占比对照，完整 HBM 缺项单列。</p>
         </div>
         <div class="actions">
           <a class="read" href="models/glm-5.3-hbm-report.html" aria-label="在线阅读 GLM-5.3 报告">在线阅读</a>
+          <a class="download" href="models/glm-5.3-hbm-report.html#length-pies">查看扇形图对比</a>
           <a class="download" href="models/glm-5.3-hbm-report.html" download>下载 HTML</a>
         </div>
       </article>
