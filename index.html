@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="DeepSeek V4、DeepSeek V4.1 与 GLM-5.3 的 Ascend HBM 分账报告，在线阅读与 HTML 下载。">
+  <title>模型 HBM 报告 · personal_agent</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f5f7fb; --surface:#fff; --ink:#172538; --muted:#53647a; --line:#dce4ee; --accent:#2456cf; --tag:#eaf0fd; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:1rem/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; }
+    main { width:min(1080px,100%); padding:36px 28px 60px; margin:auto; }
+    a { color:var(--accent); text-underline-offset:.2em; }
+    a:focus-visible { outline:3px solid var(--accent); outline-offset:5px; border-radius:3px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:20px; padding-bottom:28px; border-bottom:1px solid var(--line); }
+    .brand { color:var(--ink); font-weight:700; text-decoration:none; letter-spacing:.025em; }
+    .repo { font-size:.9rem; }
+    header { padding:44px 0 32px; }
+    .eyebrow { font-size:.875rem; color:var(--accent); letter-spacing:.12em; font-weight:600; }
+    h1 { font-size:clamp(2rem,5vw,3.25rem); line-height:1.2; letter-spacing:-.04em; margin:12px 0 18px; }
+    .intro { margin:0; max-width:750px; font-size:1.125rem; color:var(--muted); }
+    .context { display:flex; flex-wrap:wrap; gap:8px; margin:25px 0 0; }
+    .context span { background:var(--tag); color:var(--accent); border-radius:5px; padding:3px 11px; font-size:.875rem; }
+    .reports { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--surface); }
+    article { display:grid; grid-template-columns:1fr 160px; gap:32px; padding:30px; }
+    article + article { border-top:1px solid var(--line); }
+    h2 { margin:0 0 9px; font-size:1.35rem; line-height:1.4; }
+    h2 a { text-decoration:none; color:var(--ink); }
+    h2 a:hover { color:var(--accent); text-decoration:underline; }
+    article p { margin:0; color:var(--muted); }
+    .detail { margin-top:10px; font-size:.875rem; }
+    .actions { display:flex; flex-direction:column; justify-content:center; align-items:stretch; gap:10px; }
+    .read { text-align:center; padding:9px 16px; background:var(--accent); border:1px solid var(--accent); color:#fff; border-radius:7px; text-decoration:none; font-weight:600; }
+    .read:hover { filter:brightness(1.1); }
+    .download { text-align:center; font-size:.875rem; }
+    aside { margin:28px 0; padding:22px 25px; border-left:3px solid var(--accent); background:var(--surface); border-radius:0 9px 9px 0; }
+    aside h2 { font-size:1rem; margin-bottom:6px; }
+    aside p { margin:0; color:var(--muted); }
+    footer { display:flex; justify-content:space-between; gap:18px; border-top:1px solid var(--line); padding-top:20px; color:var(--muted); font-size:.875rem; }
+    @media(max-width:640px) { main{padding:22px 18px 40px} header{padding-top:32px} article{grid-template-columns:1fr;gap:20px;padding:24px 20px}.actions{flex-direction:row;align-items:center;justify-content:flex-start;gap:20px}.read{min-width:130px}footer{flex-direction:column;gap:5px} }
+    @media(prefers-color-scheme:dark) { :root{--bg:#101722;--surface:#182231;--ink:#edf2f9;--muted:#b4c2d4;--line:#34435a;--accent:#97b7ff;--tag:#233757}.read{background:#3566d7;border-color:#3566d7;color:#fff} }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <a class="brand" href="./">personal_agent</a>
+      <a class="repo" href="https://github.com/weijinqian0/personal_agent">GitHub 仓库</a>
+    </div>
+    <header>
+      <div class="eyebrow">MODEL MEMORY REPORTS</div>
+      <h1>模型 HBM 报告</h1>
+      <p class="intro">从权重、KV Cache 到激活、图池与通信缓冲，按模块展开计算过程。选择报告即可在线阅读，也可以下载 HTML 离线查看。</p>
+      <div class="context" aria-label="报告参考条件"><span>Ascend A5</span><span>TP4 × DP4</span><span>8192-token chunk</span><span>静态条件分析</span></div>
+    </header>
+    <section class="reports" aria-label="在线报告列表">
+      <article>
+        <div>
+          <h2><a href="models/deepseek-v4-hbm-report.html">DeepSeek V4 Flash</a></h2>
+          <p>A5、TP4×DP4（条件有效 EP16），采用异步 KV ×2 规划预算，比较 128K、512K、1M 与 2M 的容量变化。</p>
+          <p class="detail">部署参考条件与各模块 HBM 分账。</p>
+        </div>
+        <div class="actions">
+          <a class="read" href="models/deepseek-v4-hbm-report.html" aria-label="在线阅读 DeepSeek V4 Flash 报告">在线阅读</a>
+          <a class="download" href="models/deepseek-v4-hbm-report.html" download>下载 HTML</a>
+        </div>
+      </article>
+      <article>
+        <div>
+          <h2><a href="models/deepseek-v4.1-hbm-report.html">DeepSeek V4.1 Flash</a></h2>
+          <p>128K 输入、目标连续 prefix 命中 90%、8192-token chunk，以及 Engram 主机内存 offload 场景。</p>
+          <p class="detail">权重、KV、激活与运行时分别列账，保留未确认的物理容量项。</p>
+        </div>
+        <div class="actions">
+          <a class="read" href="models/deepseek-v4.1-hbm-report.html" aria-label="在线阅读 DeepSeek V4.1 Flash 报告">在线阅读</a>
+          <a class="download" href="models/deepseek-v4.1-hbm-report.html" download>下载 HTML</a>
+        </div>
+      </article>
+      <article>
+        <div>
+          <h2><a href="models/glm-5.3-hbm-report.html">GLM-5.3</a></h2>
+          <p>沿用 DeepSeek V4 的 A5、TP4×DP4、8192-token chunk 与 KV ×2 预算，按完整 GLM-5.3 的 MLA/DSA 与 MTP 结构重新计算。</p>
+          <p class="detail">78 层 Target、1 层 MTP；A5 量化权重采用条件矩阵分账。</p>
+        </div>
+        <div class="actions">
+          <a class="read" href="models/glm-5.3-hbm-report.html" aria-label="在线阅读 GLM-5.3 报告">在线阅读</a>
+          <a class="download" href="models/glm-5.3-hbm-report.html" download>下载 HTML</a>
+        </div>
+      </article>
+    </section>
+    <aside aria-label="报告阅读说明">
+      <h2>阅读口径</h2>
+      <p>报告中的静态组件、条件预算与设备实测有不同含义，具体来源和缺项以各报告为准。完整物理需求与峰值未确认时保留未知；2M 对照仅为容量外推，不代表模型已经支持 2M 上下文。</p>
+    </aside>
+    <footer>
+      <span>personal_agent · 模型 HBM 报告目录</span>
+      <a href="https://github.com/weijinqian0/personal_agent/tree/main/models">查看报告源文件</a>
+    </footer>
+  </main>
+</body>
+</html>
