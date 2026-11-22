@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="DeepSeek V4、DeepSeek V4.1 与 GLM-5.3 的 Ascend HBM 分账报告，在线阅读与 HTML 下载。">
+  <meta name="description" content="DeepSeek V4、DeepSeek V4.1、GLM-5.3 与 Qwen3.8-Flash-Next 的 Ascend HBM 分账报告，在线阅读与 HTML 下载。">
   <title>模型 HBM 报告 · personal_agent</title>
   <style>
     :root { color-scheme: light dark; --bg:#f5f7fb; --surface:#fff; --ink:#172538; --muted:#53647a; --line:#dce4ee; --accent:#2456cf; --tag:#eaf0fd; }
@@ -52,7 +52,7 @@
       <div class="eyebrow">MODEL MEMORY REPORTS</div>
       <h1>模型 HBM 报告</h1>
       <p class="intro">从权重、KV Cache 到激活、图池与通信缓冲，按模块展开计算过程。选择报告即可在线阅读，也可以下载 HTML 离线查看。</p>
-      <div class="context" aria-label="报告参考条件"><span>Ascend A5</span><span>TP4 × DP4</span><span>8192-token chunk</span><span>静态条件分析</span></div>
+      <div class="context" aria-label="报告参考条件"><span>Ascend A5</span><span>TP4 × DP4</span><span>8192-token 调度额度</span><span>静态条件分析</span></div>
     </header>
     <section class="reports" aria-label="在线报告列表">
       <article>
@@ -88,6 +88,18 @@
           <a class="read" href="models/glm-5.3-hbm-report.html" aria-label="在线阅读 GLM-5.3 报告">在线阅读</a>
           <a class="download" href="models/glm-5.3-hbm-report.html#length-pies">查看扇形图对比</a>
           <a class="download" href="models/glm-5.3-hbm-report.html" download>下载 HTML</a>
+        </div>
+      </article>
+      <article>
+        <div>
+          <h2><a href="models/qwen3.8-flash-next-hbm-report.html">Qwen3.8-Flash-Next</a></h2>
+          <p>128K、256K、512K、1M 与 2M 的分项账和五张扇形图；A5、TP4×DP4、PLE 主机 offload，KV 采用 BF16。</p>
+          <p class="detail">12 层 QSA、36 层 GDN、1 个 PLE、1 层 MTP；完整 48 分片张量头核验，展示共享缓存布局及条件预算。超过原生 256K 的长度仅作容量外推。</p>
+        </div>
+        <div class="actions">
+          <a class="read" href="models/qwen3.8-flash-next-hbm-report.html" aria-label="在线阅读 Qwen3.8-Flash-Next 报告">在线阅读</a>
+          <a class="download" href="models/qwen3.8-flash-next-hbm-report.html#length-pies">查看扇形图对比</a>
+          <a class="download" href="models/qwen3.8-flash-next-hbm-report.html" download>下载 HTML</a>
         </div>
       </article>
     </section>
